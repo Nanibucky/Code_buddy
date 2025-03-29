@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room: {{ room.name }} - CodeChallenge</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .room-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        
+        @media (max-width: 992px) {
+            .room-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .room-title-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .room-code {
+            background-color: var(--primary);
+            color: white;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-family: 'Fira Code', monospace;
+            font-weight: 500;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .room-code:hover {
+            background-color: var(--primary-dark);
+            transform: scale(1.05);
+        }
+        
+        .room-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .room-sidebar {
+            position: sticky;
+            top: 20px;
+        }
+        
+        .sidebar-card {
+            border-radius: 12px;
+            border: 1px solid rgba(79, 70, 229, 0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+            background-color: white;
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+            border-bottom: 1px solid rgba(79, 70, 229, 0.1);
+            font-weight: 600;
+        }
+        
+        .sidebar-body {
+            padding: 15px;
+        }
+        
+        .members-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .member-item {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(79, 70, 229, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .member-item:last-child {
+            border-bottom: none;
+        }
+        
+        .member-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .creator-badge {
+            background-color: var(--primary-light);
+            color: white;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .share-button {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+            border: none;
+            border-radius: 12px;
+            padding: 10px 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .share-button:hover {
+            background-color: rgba(79, 70, 229, 0.2);
+        }
+        
+        .question-container {
+            background-color: white;
+            border-radius: 12px;
+            border: 1px solid rgba(79, 70, 229, 0.1);
+            overflow: hidden;
+        }
+        
+        .question-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(79, 70, 229, 0.1);
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+        }
+        
+        .question-body {
+            padding: 20px;
+        }
+        
+        .waiting-container {
+            background-color: white;
+            border-radius: 12px;
+            border: 1px solid rgba(79, 70, 229, 0.1);
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        .waiting-icon {
+            font-size: 3rem;
+            color: var(--warning);
+            margin-bottom: 20px;
+        }
+        
+        .leaderboard-table {
+            width: 100%;
+        }
+        
+        .leaderboard-table th,
+        .leaderboard-table td {
+            padding: 8px 10px;
+        }
+        
+        .leaderboard-table tr:not(:last-child) {
+            border-bottom: 1px solid rgba(79, 70, 229, 0.05);
+        }
+        
+        .leaderboard-rank {
+            text-align: center;
+            font-weight: 600;
+            width: 40px;
+        }
+        
+        .rank-1 {
+            color: gold;
+        }
+        
+        .rank-2 {
+            color: silver;
+        }
+        
+        .rank-3 {
+            color: #cd7f32; /* bronze */
+        }
+        
+        .copy-feedback {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--success);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+        
+        .copy-feedback.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Room settings section */
+        .room-settings {
+            margin-bottom: 30px;
+        }
+        
+        .settings-card {
+            background-color: white;
+            border-radius: 12px;
+            border: 1px solid rgba(79, 70, 229, 0.1);
+            overflow: hidden;
+        }
+        
+        .settings-header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+            border-bottom: 1px solid rgba(79, 70, 229, 0.1);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .settings-body {
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-light mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="{{ url_for('index') }}"><i class="fas fa-code me-2"></i>Code<span>Challenge</span></a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('index') }}"><i class="fas fa-home me-1"></i> Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('rooms') }}"><i class="fas fa-users me-1"></i> Rooms</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('profile') }}"><i class="fas fa-user me-1"></i> Profile</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages mb-4">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }}">
+                            {% if category == 'error' %}
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                            {% elif category == 'success' %}
+                                <i class="fas fa-check-circle me-2"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle me-2"></i>
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Room Header -->
+        <div class="room-header">
+            <div class="room-title-section">
+                <h2 class="room-title">{{ room.name }}</h2>
+            </div>
+            
+            <div class="room-actions">
+                <div id="room-code" class="room-code" title="Click to copy">
+                    <i class="fas fa-key me-1"></i>{{ room.room_code }}
+                </div>
+                
+                <button class="share-button" id="share-button">
+                    <i class="fas fa-share-alt"></i>
+                    Share Room Code
+                </button>
+            </div>
+        </div>
+        
+        <!-- Room Settings (for creator only) -->
+        {% if is_creator %}
+        <div class="room-settings">
+            <div class="settings-card">
+                <div class="settings-header">
+                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Room Settings</h5>
+                    <div>
+                        <button id="save-settings-btn" class="btn btn-sm btn-primary" style="display: none;">
+                            <i class="fas fa-save me-1"></i> Save Changes
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-body">
+                    <form id="room-settings-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="difficulty" class="form-label">Difficulty</label>
+                                    <select class="form-select" id="difficulty" name="difficulty">
+                                        <option value="easy" {% if room.difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                                        <option value="medium" {% if room.difficulty == 'medium' or not room.difficulty %}selected{% endif %}>Medium</option>
+                                        <option value="hard" {% if room.difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="topic" class="form-label">Topic (Optional)</label>
+                                    <select class="form-select" id="topic" name="topic">
+                                        <option value="" {% if not room.topic %}selected{% endif %}>Any Topic</option>
+                                        <option value="arrays" {% if room.topic == 'arrays' %}selected{% endif %}>Arrays</option>
+                                        <option value="strings" {% if room.topic == 'strings' %}selected{% endif %}>Strings</option>
+                                        <option value="linked-lists" {% if room.topic == 'linked-lists' %}selected{% endif %}>Linked Lists</option>
+                                        <option value="trees" {% if room.topic == 'trees' %}selected{% endif %}>Trees</option>
+                                        <option value="recursion" {% if room.topic == 'recursion' %}selected{% endif %}>Recursion</option>
+                                        <option value="dynamic-programming" {% if room.topic == 'dynamic-programming' %}selected{% endif %}>Dynamic Programming</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Room Layout -->
+        <div class="room-layout">
+            <!-- Main Content -->
+            <div class="room-main">
+                {% if question %}
+                    <!-- Question Display -->
+                    <div class="question-container">
+                        <div class="question-header d-flex justify-content-between align-items-center">
+                            <h3>{{ question.info.function_name }}</h3>
+                            <span class="badge badge-difficulty badge-{{ question.info.difficulty }}">{{ question.info.difficulty|title }}</span>
+                        </div>
+                        
+                        <div class="question-body">
+                            <div id="question-description" class="mb-4">
+                                <p>{{ question.info.problem_statement }}</p>
+                            </div>
+                            
+                            <h4><i class="fas fa-signature me-2"></i>Function Signature:</h4>
+                            <pre><code>{{ question.info.function_signature }}</code></pre>
+                            
+                            <h4><i class="fas fa-lightbulb me-2"></i>Examples:</h4>
+                            <div id="examples-container">
+                                {% for example in question.example_test_cases %}
+                                    <div class="example mb-3">
+                                        <p><strong>Example {{ loop.index }}:</strong></p>
+                                        <p><code>Inputs: {{ example.inputs }}</code></p>
+                                        <p><code>Expected Output: {{ example.expected_output }}</code></p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <h4><i class="fas fa-exclamation-circle me-2"></i>Constraints:</h4>
+                            <ul id="constraints-list" class="mb-4">
+                                {% for constraint in question.info.constraints %}
+                                    <li><code>{{ constraint }}</code></li>
+                                {% endfor %}
+                            </ul>
+                            
+                            <div class="d-grid">
+                                <a href="{{ url_for('index') }}?room_id={{ room.id }}&question_id={{ question.id }}" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-code me-2"></i>Solve This Challenge
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Waiting for Question -->
+                    <div class="waiting-container">
+                        <div class="waiting-icon">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                        <h3>Waiting for a Question</h3>
+                        <p class="text-muted">No coding challenge has been assigned to this room yet.</p>
+                        
+                        {% if is_creator %}
+                            <div class="mt-4">
+                                <button id="assign-question-btn" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-plus-circle me-2"></i>Assign a Question
+                                </button>
+                            </div>
+                            
+                            <div id="question-options" class="mt-4" style="display: none;">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5>Question Settings</h5>
+                                        
+                                        <div class="mb-3">
+                                            <label for="question-difficulty" class="form-label">Difficulty</label>
+                                            <select class="form-select" id="question-difficulty">
+                                                <option value="easy" {% if room.difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                                                <option value="medium" {% if room.difficulty == 'medium' or not room.difficulty %}selected{% endif %}>Medium</option>
+                                                <option value="hard" {% if room.difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="question-topic" class="form-label">Topic (Optional)</label>
+                                            <select class="form-select" id="question-topic">
+                                                <option value="" {% if not room.topic %}selected{% endif %}>Any Topic</option>
+                                                <option value="arrays" {% if room.topic == 'arrays' %}selected{% endif %}>Arrays</option>
+                                                <option value="strings" {% if room.topic == 'strings' %}selected{% endif %}>Strings</option>
+                                                <option value="linked-lists" {% if room.topic == 'linked-lists' %}selected{% endif %}>Linked Lists</option>
+                                                <option value="trees" {% if room.topic == 'trees' %}selected{% endif %}>Trees</option>
+                                                <option value="recursion" {% if room.topic == 'recursion' %}selected{% endif %}>Recursion</option>
+                                                <option value="dynamic-programming" {% if room.topic == 'dynamic-programming' %}selected{% endif %}>Dynamic Programming</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="d-grid">
+                                            <button id="generate-question-btn" class="btn btn-primary">
+                                                <i class="fas fa-magic me-2"></i>Generate Question
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="room-sidebar">
+                <!-- Members Card -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="fas fa-users me-2"></i>Room Members ({{ room.members|length }})
+                    </div>
+                    <div class="sidebar-body">
+                        <ul class="members-list">
+                            {% for member in room.members %}
+                                <li class="member-item">
+                                    <span class="member-name">
+                                        <i class="fas fa-user"></i>
+                                        {{ member.username }}
+                                        {% if member.is_creator %}
+                                            <span class="creator-badge">Creator</span>
+                                        {% endif %}
+                                    </span>
+                                    
+                                    {% if member.user_id == session.user_id %}
+                                        <span class="badge bg-secondary">You</span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Leaderboard Card -->
+                <div class="sidebar-card">
+                    <div class="sidebar-header">
+                        <i class="fas fa-trophy me-2"></i>Room Leaderboard
+                    </div>
+                    <div class="sidebar-body">
+                        {% if room.submissions %}
+                            <table class="leaderboard-table">
+                                <thead>
+                                    <tr>
+                                        <th class="leaderboard-rank">#</th>
+                                        <th>User</th>
+                                        <th>Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for submission in room.submissions %}
+                                        <tr>
+                                            <td class="leaderboard-rank rank-{{ loop.index if loop.index <= 3 else '' }}">
+                                                {{ loop.index }}
+                                            </td>
+                                            <td>
+                                                {{ submission.username }}
+                                                {% if submission.user_id == session.user_id %}
+                                                    <span class="badge bg-secondary">You</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ (submission.passing_ratio * 100)|int }}%</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <div class="text-center py-3 text-muted">
+                                <i class="fas fa-trophy me-2"></i>
+                                No submissions yet
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer>
+            <p>© 2025 CodeChallenge | Powered by LLM Coding Practice Platform</p>
+            <div class="mt-2">
+                <a href="#" class="text-decoration-none text-muted me-3"><i class="fab fa-github me-1"></i> GitHub</a>
+                <a href="#" class="text-decoration-none text-muted me-3"><i class="fab fa-twitter me-1"></i> Twitter</a>
+                <a href="#" class="text-decoration-none text-muted"><i class="fas fa-envelope me-1"></i> Contact</a>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Copy feedback toast -->
+    <div id="copy-feedback" class="copy-feedback">
+        <i class="fas fa-check-circle"></i>
+        Room code copied to clipboard!
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Store all Jinja template values in JavaScript variables first
+            // This prevents JavaScript syntax errors from Jinja templating
+            const roomData = {
+                id: "{{ room.id }}",
+                code: "{{ room.room_code }}",
+                memberCount: {{ room.members|length }},
+                submissionCount: {% if room.submissions %}{{ room.submissions|length }}{% else %}0{% endif %},
+                hasQuestion: {% if question %}true{% else %}false{% endif %}
+            };
+            
+            // Room code sharing functionality
+            setupShareButton();
+            
+            // Question assignment functionality for room creator
+            setupQuestionAssignment();
+            
+            // Room settings functionality
+            setupRoomSettings();
+            
+            // Room status polling
+            setupRoomStatusPolling();
+            
+            // FUNCTIONS
+            
+            // Share button functionality
+            function setupShareButton() {
+                const shareButton = document.getElementById('share-button');
+                const roomCode = document.getElementById('room-code');
+                const copyFeedback = document.getElementById('copy-feedback');
+                
+                if (shareButton && roomCode) {
+                    shareButton.addEventListener('click', function() {
+                        copyRoomCode();
+                    });
+                    
+                    // Also allow clicking directly on the room code
+                    if (roomCode) {
+                        roomCode.addEventListener('click', function() {
+                            copyRoomCode();
+                        });
+                    }
+                }
+                
+                function copyRoomCode() {
+                    // Copy room code to clipboard
+                    const code = roomData.code;
+                    
+                    // Use Clipboard API if available
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(code).then(() => {
+                            showCopyFeedback();
+                        });
+                    } else {
+                        // Fallback for older browsers
+                        const tempInput = document.createElement('input');
+                        tempInput.value = code;
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(tempInput);
+                        showCopyFeedback();
+                    }
+                }
+                
+                function showCopyFeedback() {
+                    if (copyFeedback) {
+                        copyFeedback.classList.add('show');
+                        setTimeout(() => {
+                            copyFeedback.classList.remove('show');
+                        }, 3000);
+                    }
+                }
+            }
+            
+            // Question assignment functionality
+            function setupQuestionAssignment() {
+                const assignQuestionBtn = document.getElementById('assign-question-btn');
+                const questionOptions = document.getElementById('question-options');
+                const generateQuestionBtn = document.getElementById('generate-question-btn');
+                
+                if (assignQuestionBtn && questionOptions) {
+                    assignQuestionBtn.addEventListener('click', function() {
+                        questionOptions.style.display = 'block';
+                        assignQuestionBtn.style.display = 'none';
+                    });
+                }
+                
+                if (generateQuestionBtn) {
+                    generateQuestionBtn.addEventListener('click', function() {
+                        // Show loading state
+                        generateQuestionBtn.disabled = true;
+                        generateQuestionBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+                        
+                        // Get values from form
+                        const difficulty = document.getElementById('question-difficulty').value;
+                        const topic = document.getElementById('question-topic').value;
+                        
+                        // Make API request to assign question
+                        fetch('/api/room/' + roomData.id + '/assign-question', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                difficulty: difficulty,
+                                topic: topic || null
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Reload the page to show the new question
+                                window.location.reload();
+                            } else {
+                                alert('Error generating question: ' + (data.error || 'Unknown error'));
+                                
+                                // Reset button state
+                                generateQuestionBtn.disabled = false;
+                                generateQuestionBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate Question';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred. Please try again.');
+                            
+                            // Reset button state
+                            generateQuestionBtn.disabled = false;
+                            generateQuestionBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate Question';
+                        });
+                    });
+                }
+            }
+            
+            // Room settings functionality
+            function setupRoomSettings() {
+                const difficultySelect = document.getElementById('difficulty');
+                const topicSelect = document.getElementById('topic');
+                const saveBtn = document.getElementById('save-settings-btn');
+                
+                // Only proceed if we're in creator mode
+                if (!difficultySelect || !topicSelect || !saveBtn) {
+                    return;
+                }
+                
+                // Track original values
+                const originalDifficulty = difficultySelect.value;
+                const originalTopic = topicSelect.value;
+                
+                // Show save button when values change
+                function checkChanges() {
+                    if (difficultySelect.value !== originalDifficulty || topicSelect.value !== originalTopic) {
+                        saveBtn.style.display = 'block';
+                    } else {
+                        saveBtn.style.display = 'none';
+                    }
+                }
+                
+                difficultySelect.addEventListener('change', checkChanges);
+                topicSelect.addEventListener('change', checkChanges);
+                
+                // Save settings
+                saveBtn.addEventListener('click', function() {
+                    // Show loading state
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+                    
+                    // Send update request
+                    fetch('/api/room/' + roomData.id + '/update-settings', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            difficulty: difficultySelect.value,
+                            topic: topicSelect.value || null
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update original values
+                            originalDifficulty = difficultySelect.value;
+                            originalTopic = topicSelect.value;
+                            
+                            // Hide save button
+                            saveBtn.style.display = 'none';
+                            
+                            // Show success message
+                            alert('Room settings updated successfully!');
+                        } else {
+                            alert('Error updating settings: ' + (data.error || 'Unknown error'));
+                        }
+                        
+                        // Reset button state
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Changes';
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while saving settings. Please try again.');
+                        
+                        // Reset button state
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Changes';
+                    });
+                });
+            }
+            
+            // Room status polling
+            function setupRoomStatusPolling() {
+                // Only set up polling if needed (no question assigned yet)
+                if (!roomData.hasQuestion) {
+                    setInterval(pollRoomStatus, 30000); // Poll every 30 seconds
+                }
+                
+                function pollRoomStatus() {
+                    fetch('/api/room/' + roomData.code + '/status')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                let shouldReload = false;
+                                
+                                // Check if question is assigned and we don't have one
+                                if (data.room.question && !roomData.hasQuestion) {
+                                    shouldReload = true;
+                                }
+                                
+                                // Check if new members joined
+                                if (data.room.members.length > roomData.memberCount) {
+                                    shouldReload = true;
+                                }
+                                
+                                // Check for new submissions
+                                if (data.room.submissions > roomData.submissionCount) {
+                                    shouldReload = true;
+                                }
+                                
+                                if (shouldReload) {
+                                    window.location.reload();
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error polling room status:', error));
+                }
+            }
+        });
+    </script>

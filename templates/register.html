@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - CodeChallenge</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --primary-dark: #3730a3;
+            --secondary: #06b6d4;
+            --light-bg: #f5f5ff;
+            --dark-text: #333;
+            --light-text: #6b7280;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--light-bg);
+            background-image: radial-gradient(circle at 30% 50%, rgba(79, 70, 229, 0.05) 0%, transparent 50%),
+                            radial-gradient(circle at 70% 70%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .register-container {
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            margin: 40px 0;
+        }
+        
+        .brand {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .brand h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .welcome-text {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .welcome-text h2 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--dark-text);
+        }
+        
+        .welcome-text p {
+            color: var(--light-text);
+            font-size: 1.1rem;
+        }
+        
+        .form-control {
+            padding: 15px 20px;
+            height: auto;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            background-color: #f9fafb;
+            box-shadow: none;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+            background-color: white;
+        }
+        
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--light-text);
+            z-index: 10;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--light-text);
+            cursor: pointer;
+            z-index: 10;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .password-toggle:hover {
+            color: var(--primary);
+        }
+        
+        .input-with-icon {
+            padding-left: 45px;
+        }
+        
+        .input-with-password-toggle {
+            padding-right: 45px;
+        }
+        
+        .form-text {
+            font-size: 0.85rem;
+            color: var(--light-text);
+            margin-top: 5px;
+            margin-left: 5px;
+        }
+        
+        .btn-register {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.15);
+            margin-top: 20px;
+        }
+        
+        .btn-register:hover {
+            background: var(--primary-dark);
+            box-shadow: 0 6px 10px rgba(79, 70, 229, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .password-requirements {
+            margin: 15px 0 25px;
+            background-color: #f9fafb;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .password-requirement {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: var(--light-text);
+        }
+        
+        .requirement-icon {
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .login-link {
+            text-align: center;
+            margin-top: 25px;
+            color: var(--light-text);
+        }
+        
+        .login-link a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        
+        .flash-error {
+            background-color: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #b91c1c;
+        }
+        
+        .flash-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #047857;
+        }
+        
+        .flash-info {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #1d4ed8;
+        }
+        
+        .requirement-met i {
+            color: var(--success);
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <!-- Brand Logo -->
+        <div class="brand">
+            <h1><i class="fas fa-code me-2"></i>CodeChallenge</h1>
+        </div>
+        
+        <!-- Welcome Text -->
+        <div class="welcome-text">
+            <h2>Create an Account</h2>
+            <p>Join our coding practice platform</p>
+        </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-{{ category }}">
+                            {% if category == 'error' %}
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                            {% elif category == 'success' %}
+                                <i class="fas fa-check-circle me-2"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle me-2"></i>
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Registration Form -->
+        <form action="{{ url_for('register') }}" method="post" id="registration-form">
+            <div class="input-group">
+                <span class="input-icon">
+                    <i class="fas fa-user"></i>
+                </span>
+                <input type="text" class="form-control input-with-icon" id="username" name="username" placeholder="Username" required>
+            </div>
+            <div class="form-text">3-20 characters, letters, numbers, and underscores only</div>
+            
+            <div class="input-group">
+                <span class="input-icon">
+                    <i class="fas fa-envelope"></i>
+                </span>
+                <input type="email" class="form-control input-with-icon" id="email" name="email" placeholder="Email" required>
+            </div>
+            
+            <div class="input-group">
+                <span class="input-icon">
+                    <i class="fas fa-lock"></i>
+                </span>
+                <input type="password" class="form-control input-with-icon input-with-password-toggle" id="password" name="password" placeholder="Password" required>
+                <button type="button" class="password-toggle" id="password-toggle" aria-label="Toggle password visibility">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            
+            <div class="password-requirements">
+                <div class="password-requirement" id="req-length">
+                    <div class="requirement-icon">
+                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                    </div>
+                    <div class="requirement-text">At least 8 characters</div>
+                </div>
+                <div class="password-requirement" id="req-uppercase">
+                    <div class="requirement-icon">
+                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                    </div>
+                    <div class="requirement-text">At least one uppercase letter</div>
+                </div>
+                <div class="password-requirement" id="req-lowercase">
+                    <div class="requirement-icon">
+                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                    </div>
+                    <div class="requirement-text">At least one lowercase letter</div>
+                </div>
+                <div class="password-requirement" id="req-digit">
+                    <div class="requirement-icon">
+                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                    </div>
+                    <div class="requirement-text">At least one number</div>
+                </div>
+                <div class="password-requirement" id="req-special">
+                    <div class="requirement-icon">
+                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                    </div>
+                    <div class="requirement-text">At least one special character (!@#$%^&*)</div>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <span class="input-icon">
+                    <i class="fas fa-lock"></i>
+                </span>
+                <input type="password" class="form-control input-with-icon input-with-password-toggle" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+                <button type="button" class="password-toggle" id="confirm-password-toggle" aria-label="Toggle password visibility">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
+            </div>
+            
+            <button type="submit" class="btn-register">
+                <i class="fas fa-user-plus me-2"></i>Create Account
+            </button>
+        </form>
+        
+        <div class="login-link">
+            <p>Already have an account? <a href="{{ url_for('login') }}">Sign in</a></p>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Password toggle functionality
+            const setupPasswordToggle = (passwordId, toggleId) => {
+                const passwordField = document.getElementById(passwordId);
+                const toggleButton = document.getElementById(toggleId);
+                
+                toggleButton.addEventListener('click', function() {
+                    // Toggle password visibility
+                    if (passwordField.type === 'password') {
+                        passwordField.type = 'text';
+                        toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
+                        toggleButton.setAttribute('aria-label', 'Hide password');
+                    } else {
+                        passwordField.type = 'password';
+                        toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                        toggleButton.setAttribute('aria-label', 'Show password');
+                    }
+                    
+                    // Focus back on password field
+                    passwordField.focus();
+                });
+            };
+            
+            setupPasswordToggle('password', 'password-toggle');
+            setupPasswordToggle('confirm_password', 'confirm-password-toggle');
+            
+            // Password validation
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirm_password');
+            
+            // Password validation rules
+            const validations = [
+                { id: 'req-length', regex: /.{8,}/ },
+                { id: 'req-uppercase', regex: /[A-Z]/ },
+                { id: 'req-lowercase', regex: /[a-z]/ },
+                { id: 'req-digit', regex: /[0-9]/ },
+                { id: 'req-special', regex: /[!@#$%^&*(),.?":{}|<>]/ }
+            ];
+            
+            // Update validation indicators
+            passwordInput.addEventListener('input', function() {
+                const value = passwordInput.value;
+                
+                validations.forEach(validation => {
+                    const requirementElement = document.getElementById(validation.id);
+                    const iconElement = requirementElement.querySelector('.requirement-icon i');
+                    
+                    if (validation.regex.test(value)) {
+                        requirementElement.classList.add('requirement-met');
+                        iconElement.className = 'fas fa-check';
+                        iconElement.style.fontSize = '0.8rem';
+                    } else {
+                        requirementElement.classList.remove('requirement-met');
+                        iconElement.className = 'fas fa-circle';
+                        iconElement.style.fontSize = '0.5rem';
+                    }
+                });
+            });
+            
+            // Check password match
+            confirmPasswordInput.addEventListener('input', function() {
+                if (passwordInput.value === confirmPasswordInput.value) {
+                    confirmPasswordInput.setCustomValidity('');
+                } else {
+                    confirmPasswordInput.setCustomValidity('Passwords do not match');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

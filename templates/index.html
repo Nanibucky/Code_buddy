@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeChallenge - LLM Coding Practice</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --primary-dark: #3730a3;
+            --secondary: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --light: #f3f4f6;
+            --dark: #1f2937;
+            --gray: #6b7280;
+            --card-bg: #ffffff;
+            --body-bg: #f9fafb;
+        }
+
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--body-bg);
+            color: var(--dark);
+            background-image: radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.03) 0%, rgba(79, 70, 229, 0) 50%);
+        }
+
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .navbar-brand span {
+            font-weight: 300;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            color: var(--dark);
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .question-container {
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(209, 213, 219, 0.5);
+        }
+
+        .question-container:hover {
+            box-shadow: 0 15px 30px rgba(79, 70, 229, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(209, 213, 219, 0.5);
+        }
+
+        .card:hover {
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.1);
+        }
+
+        .card-header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid rgba(209, 213, 219, 0.5);
+            padding: 20px 25px;
+        }
+
+        .editor-container {
+            height: 450px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            border: 1px solid rgba(209, 213, 219, 0.5);
+        }
+
+        .test-case {
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(209, 213, 219, 0.5);
+        }
+
+        .test-case:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        }
+
+        .test-case.passed {
+            background-color: rgba(16, 185, 129, 0.1);
+            border-left: 5px solid var(--success);
+        }
+
+        .test-case.failed {
+            background-color: rgba(239, 68, 68, 0.1);
+            border-left: 5px solid var(--danger);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 80px;
+            height: 80px;
+            margin: 40px auto;
+            position: relative;
+        }
+
+        .loader:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            50% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+        }
+
+        #controls {
+            margin-bottom: 30px;
+            padding: 25px;
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(209, 213, 219, 0.5);
+        }
+
+        #controls:hover {
+            box-shadow: 0 15px 30px rgba(79, 70, 229, 0.1);
+        }
+
+        .difficulty-badge {
+            font-size: 0.85rem;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .badge-easy {
+            background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+            color: white;
+        }
+
+        .badge-medium {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            color: white;
+        }
+
+        .badge-hard {
+            background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn {
+            border-radius: 12px;
+            font-weight: 600;
+            padding: 12px 24px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.1);
+            transform: translateX(-100%);
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .btn:hover::after {
+            transform: translateX(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        pre {
+            background-color: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+            font-family: 'Fira Code', monospace;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+        }
+
+        .example {
+            background-color: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(209, 213, 219, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .example:hover {
+            box-shadow: 0 10px 15px rgba(0,0,0,0.03);
+            transform: translateY(-2px);
+        }
+
+        .example strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        h2 {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        h4 {
+            color: var(--dark);
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        h5 {
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .alert {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.03);
+            padding: 20px 25px;
+        }
+
+        /* Code highlighting */
+        code {
+            background-color: rgba(79, 70, 229, 0.1);
+            padding: 3px 6px;
+            border-radius: 6px;
+            color: var(--primary-dark);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+        }
+
+        /* Stats section */
+        .stats-card {
+            text-align: center;
+            padding: 25px 20px;
+            border-radius: 16px;
+            background-color: var(--card-bg);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(209, 213, 219, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(79, 70, 229, 0.1);
+        }
+
+        .stats-card h3 {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--primary);
+            font-size: 2rem;
+        }
+
+        .stats-card p {
+            color: var(--gray);
+            margin-bottom: 0;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 70px;
+            padding: 30px 0;
+            text-align: center;
+            color: var(--gray);
+            border-top: 1px solid rgba(209, 213, 219, 0.5);
+        }
+
+        /* Form controls */
+        .form-floating .form-control {
+            border-radius: 12px;
+            border: 1px solid rgba(209, 213, 219, 0.8);
+            padding: 20px 15px;
+            height: calc(3.5rem + 2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            transition: all 0.3s ease;
+        }
+
+        .form-floating .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-floating label {
+            padding: 1rem 0.75rem;
+            color: var(--gray);
+        }
+
+        /* Tooltip style */
+        .tooltip {
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+        }
+
+        /* Scrollbar style */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c5c5c5;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* Animation keyframes */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        /* Custom Shimmer Effect */
+        .shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .shimmer::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0,
+                rgba(255, 255, 255, 0.2) 20%,
+                rgba(255, 255, 255, 0.5) 60%,
+                rgba(255, 255, 255, 0)
+            );
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* Confetti animation */
+        .confetti-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        
+        @keyframes fall {
+            0% {
+                transform: translateY(-10px) rotate(0deg);
+            }
+            100% {
+                transform: translateY(300px) rotate(360deg);
+            }
+        }
+        
+        @keyframes sway {
+            0% {
+                transform: translateX(-5px);
+            }
+            100% {
+                transform: translateX(5px);
+            }
+        }
+
+        /* Coding Buddy Chat Interface Styles */
+        .coding-buddy-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            transform: translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            border: 1px solid rgba(209, 213, 219, 0.8);
+        }
+        
+        .coding-buddy-container.open {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .coding-buddy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: #4f46e5;
+            color: white;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+        }
+        
+        .coding-buddy-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .coding-buddy-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .buddy-control-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s ease;
+        }
+        
+        .buddy-control-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .coding-buddy-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9fafb;
+        }
+        
+        .coding-buddy-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .coding-buddy-message {
+            max-width: 80%;
+            padding: 12px 15px;
+            border-radius: 12px;
+            line-height: 1.4;
+            font-size: 14px;
+            animation: message-pop 0.3s ease;
+        }
+        
+        @keyframes message-pop {
+            0% { transform: translateY(10px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        .buddy-message {
+            background-color: #4f46e5;
+            color: white;
+            border-top-left-radius: 4px;
+            align-self: flex-start;
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);
+        }
+        
+        .user-message {
+            background-color: #e5e7eb;
+            color: #1f2937;
+            border-top-right-radius: 4px;
+            align-self: flex-end;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .coding-buddy-input {
+            display: flex;
+            padding: 15px;
+            background-color: white;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        #buddy-message-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 30px;
+            outline: none;
+            font-size: 14px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        #buddy-message-input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+        
+        #buddy-send {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background-color: #4f46e5;
+            color: white;
+            margin-left: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        
+        #buddy-send:hover {
+            background-color: #3730a3;
+            transform: scale(1.05);
+        }
+        
+        .coding-buddy-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 999;
+            transition: all 0.3s ease;
+        }
+        
+        .coding-buddy-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        .coding-buddy-toggle:active {
+            transform: scale(0.95);
+        }
+        
+        .buddy-typing {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 12px 15px;
+            background-color: #4f46e5;
+            color: white;
+            border-radius: 12px;
+            border-top-left-radius: 4px;
+            align-self: flex-start;
+            margin-bottom: 10px;
+            font-size: 14px;
+            width: fit-content;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: typing-dot 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing-dot {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+        
+        .coding-buddy-message code {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        
+        .buddy-message code {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .code-block {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            margin: 5px 0;
+            border-left: 3px solid #4f46e5;
+            overflow-x: auto;
+        }
+        
+        .buddy-message .code-block {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 3px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        #buddy-messages::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        #buddy-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        #buddy-messages::-webkit-scrollbar-thumb {
+            background: #c5c5c5;
+            border-radius: 10px;
+        }
+        
+        #buddy-messages::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        .buddy-notification {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            background-color: #4f46e5;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 999;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            max-width: 300px;
+        }
+        
+        .buddy-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .buddy-notification-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .buddy-notification i {
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-light mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#"><i class="fas fa-code me-2"></i>Code<span>Challenge</span></a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <!-- Find this in the navbar section -->
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('index') }}"><i class="fas fa-home me-1"></i> Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('rooms') }}"><i class="fas fa-users me-1"></i> Rooms</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#"><i class="fas fa-chart-bar me-1"></i> Progress</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#"><i class="fas fa-book me-1"></i> Learn</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('profile') }}"><i class="fas fa-user me-1"></i> Profile</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Hero Section -->
+        <div class="text-center mb-5 animate-fade-in" id="hero-section">
+            <h1 class="display-4 fw-bold mb-3">Practice Coding with AI</h1>
+            <p class="lead text-muted mb-4">Solve challenges, improve your skills, and track your progress</p>
+            <div class="d-flex justify-content-center">
+                <button class="btn btn-primary me-3" id="hero-start-btn">
+                    <i class="fas fa-play me-2"></i> Start Practicing
+                </button>
+                <button class="btn btn-outline-secondary">
+                    <i class="fas fa-info-circle me-2"></i> Learn More
+                </button>
+            </div>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="row mb-4 hidden" id="stats-container">
+            <div class="col-md-4">
+                <div class="stats-card shimmer">
+                    <h3><i class="fas fa-check-circle text-success me-2"></i>0</h3>
+                    <p>Problems Solved</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card shimmer">
+                    <h3><i class="fas fa-fire text-warning me-2"></i>0</h3>
+                    <p>Current Streak</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card shimmer">
+                    <h3><i class="fas fa-star text-primary me-2"></i>0</h3>
+                    <p>Points Earned</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Rooms Section -->
+        <div class="card mb-4 animate-fade-in">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h3><i class="fas fa-users text-primary me-2"></i>Coding Rooms</h3>
+                        <p>Challenge your friends and code together! Create a room, share the code, and solve the same problems.</p>
+                        <div class="d-flex gap-3 mt-4">
+                            <a href="{{ url_for('create_room') }}" class="btn btn-primary">
+                                <i class="fas fa-plus-circle me-2"></i>Create Room
+                            </a>
+                            <a href="{{ url_for('join_room') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-sign-in-alt me-2"></i>Join Room
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center d-none d-md-block">
+                        <img src="{{ url_for('static', filename='img/collaboration.svg') }}" alt="Collaboration" class="img-fluid" style="max-height: 150px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Controls -->
+        <div id="controls" class="row g-3">
+            <div class="col-md-4">
+                <div class="form-floating">
+                    <select class="form-select" id="difficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                    <label for="difficulty"><i class="fas fa-layer-group me-1"></i> Difficulty</label>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="form-floating">
+                    <select class="form-select" id="topic">
+                        <option value="" selected>Any Topic</option>
+                        <option value="arrays">Arrays</option>
+                        <option value="strings">Strings</option>
+                        <option value="linked-lists">Linked Lists</option>
+                        <option value="trees">Trees</option>
+                        <option value="recursion">Recursion</option>
+                        <option value="dynamic-programming">Dynamic Programming</option>
+                    </select>
+                    <label for="topic"><i class="fas fa-tag me-1"></i> Topic</label>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <button class="btn btn-primary w-100 h-100" id="generate-btn">
+                    <i class="fas fa-random me-2"></i> Generate Challenge
+                </button>
+            </div>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="text-center hidden">
+            <div class="loader"></div>
+            <p class="lead text-center text-muted">Crafting your perfect challenge...</p>
+        </div>
+        
+        <!-- Question Container -->
+        <div id="question-container" class="question-container hidden">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0" id="question-title">Problem Title</h2>
+                    <span id="question-difficulty" class="badge difficulty-badge">Medium</span>
+                </div>
+                <div class="card-body">
+                    <div id="question-description" class="mb-4">
+                        <!-- Question description will be inserted here -->
+                    </div>
+                    
+                    <h4><i class="fas fa-signature me-2"></i>Function Signature:</h4>
+                    <pre><code id="function-signature">def solution(param1, param2):</code></pre>
+                    
+                    <h4><i class="fas fa-lightbulb me-2"></i>Examples:</h4>
+                    <div id="examples-container">
+                        <!-- Examples will be inserted here -->
+                    </div>
+                    
+                    <h4><i class="fas fa-exclamation-circle me-2"></i>Constraints:</h4>
+                    <ul id="constraints-list" class="mb-0">
+                        <!-- Constraints will be inserted here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Editor Container -->
+        <div id="editor-container" class="editor-container hidden">
+            <div id="code-editor" style="height: 100%; width: 100%;"></div>
+        </div>
+        
+        <!-- Submit Button -->
+        <div id="submit-container" class="text-center hidden">
+            <button class="btn btn-success btn-lg" id="submit-btn">
+                <i class="fas fa-paper-plane me-2"></i> Submit Solution
+            </button>
+            <p class="text-muted mt-2"><small><i class="fas fa-keyboard me-1"></i> Pro tip: Use Ctrl+Enter to submit</small></p>
+        </div>
+        
+        <!-- Results Container -->
+        <div id="results-container" class="hidden mt-4">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Test Results</h3>
+                </div>
+                <div class="card-body">
+                    <div id="summary" class="alert mb-4">
+                        <!-- Summary will be inserted here -->
+                    </div>
+                    
+                    <h4><i class="fas fa-vial me-2"></i>Test Cases:</h4>
+                    <div id="test-cases">
+                        <!-- Test cases will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer>
+            <p>© 2025 CodeChallenge | Powered by LLM Coding Practice Platform</p>
+            <div class="mt-2">
+                <a href="#" class="text-decoration-none text-muted me-3"><i class="fab fa-github me-1"></i> GitHub</a>
+                <a href="#" class="text-decoration-none text-muted me-3"><i class="fab fa-twitter me-1"></i> Twitter</a>
+                <a href="#" class="text-decoration-none text-muted"><i class="fas fa-envelope me-1"></i> Contact</a>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Coding Buddy Chat Interface -->
+    <div id="coding-buddy" class="coding-buddy-container">
+        <div class="coding-buddy-header">
+            <h5><i class="fas fa-robot me-2"></i>Coding Buddy</h5>
+            <div class="coding-buddy-controls">
+                <button id="buddy-minimize" class="buddy-control-btn">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="buddy-close" class="buddy-control-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="coding-buddy-body">
+            <div id="buddy-messages" class="coding-buddy-messages">
+                <!-- Messages will appear here -->
+            </div>
+        </div>
+        <div class="coding-buddy-input">
+            <input type="text" id="buddy-message-input" placeholder="Ask about your code or the problem...">
+            <button id="buddy-send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    <button id="coding-buddy-toggle" class="coding-buddy-toggle">
+        <i class="fas fa-comment-dots"></i>
+    </button>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Global variables
+        let editor;
+        let currentQuestionId;
+        let loadedFunction;
+        
+        // Initialize Monaco Editor
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            monaco.editor.defineTheme('codeChallenge', {
+                base: 'vs',
+                inherit: true,
+                rules: [
+                    { token: 'comment', foreground: '6B7280', fontStyle: 'italic' },
+                    { token: 'keyword', foreground: '8B5CF6', fontStyle: 'bold' },
+                    { token: 'string', foreground: '10B981' },
+                    { token: 'number', foreground: 'F59E0B' },
+                    { token: 'type', foreground: '3B82F6' }
+                ],
+                colors: {
+                    'editor.foreground': '#1F2937',
+                    'editor.background': '#FFFFFF',
+                    'editorCursor.foreground': '#4F46E5',
+                    'editor.lineHighlightBackground': '#F3F4F6',
+                    'editorLineNumber.foreground': '#9CA3AF',
+                    'editor.selectionBackground': '#DBEAFE',
+                    'editor.inactiveSelectionBackground': '#E5E7EB'
+                }
+            });
+            
+            editor = monaco.editor.create(document.getElementById('code-editor'), {
+                value: '# Write your solution here\n',
+                language: 'python',
+                theme: 'codeChallenge',
+                automaticLayout: true,
+                minimap: { enabled: true },
+                fontSize: 14,
+                lineHeight: 24,
+                fontFamily: "'Fira Code', monospace",
+                padding: { top: 20, bottom: 20 },
+                scrollBeyondLastLine: false,
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: true,
+                formatOnPaste: true,
+                formatOnType: true,
+                bracketPairColorization: {
+                    enabled: true
+                },
+                guides: {
+                    bracketPairs: true,
+                    indentation: true
+                }
+            });
+            
+            // Set up event listener for code changes
+            if (editor) {
+                editor.onDidChangeModelContent(() => {
+                    // Dispatch code solution event for Coding Buddy
+                    const code = editor.getValue();
+                    const event = new CustomEvent('codeSolution', {
+                        detail: { code }
+                    });
+                    document.dispatchEvent(event);
+                });
+            }
+        });
+        
+        // Generate Question Button
+        document.getElementById('generate-btn').addEventListener('click', generateQuestion);
+        
+        // Submit Solution Button
+        document.getElementById('submit-btn').addEventListener('click', submitSolution);
+        
+        // Hero Start Button
+        document.getElementById('hero-start-btn').addEventListener('click', function() {
+            document.getElementById('hero-section').classList.add('hidden');
+            document.getElementById('stats-container').classList.remove('hidden');
+            generateQuestion();
+        });
+        
+        async function generateQuestion() {
+            const difficulty = document.getElementById('difficulty').value;
+            const topic = document.getElementById('topic').value;
+            
+            // Hide hero section if visible
+            document.getElementById('hero-section').classList.add('hidden');
+            
+            // Show loading indicator
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('question-container').classList.add('hidden');
+            document.getElementById('editor-container').classList.add('hidden');
+            document.getElementById('submit-container').classList.add('hidden');
+            document.getElementById('results-container').classList.add('hidden');
+            document.getElementById('stats-container').classList.add('hidden');
+            
+            try {
+                const response = await fetch('/api/generate-question', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        difficulty,
+                        topic: topic || undefined
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayQuestion(data);
+                    // Show stats after success
+                    document.getElementById('stats-container').classList.remove('hidden');
+                    
+                    // Dispatch event for Coding Buddy
+                    const event = new CustomEvent('questionGenerated', {
+                        detail: data
+                    });
+                    document.dispatchEvent(event);
+                } else {
+                    showError('Failed to generate question: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('An error occurred while generating the question: ' + error.message);
+            } finally {
+                // Hide loading indicator
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+        
+        function showError(message) {
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed bottom-0 end-0 p-3';
+            toast.style.zIndex = '5';
+            toast.innerHTML = `
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header bg-danger text-white">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong class="me-auto">Error</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 5000);
+        }
+        
+        function displayQuestion(data) {
+            currentQuestionId = data.question_id;
+            const questionInfo = data.question_info;
+            
+            // Add animation class for fade-in effect
+            document.getElementById('question-container').classList.add('animate-fade-in');
+            document.getElementById('editor-container').classList.add('animate-fade-in');
+            document.getElementById('submit-container').classList.add('animate-fade-in');
+            
+            // Set question title
+            document.getElementById('question-title').textContent = `${questionInfo.function_name}`;
+            
+            // Set difficulty badge
+            const difficultyBadge = document.getElementById('question-difficulty');
+            const difficulty = questionInfo.difficulty || 'medium';
+            difficultyBadge.textContent = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+            difficultyBadge.className = `badge difficulty-badge badge-${difficulty}`;
+            
+            // Set description
+            document.getElementById('question-description').innerHTML = `<p>${questionInfo.problem_statement.replace(/\n/g, '<br>')}</p>`;
+            
+            // Set function signature
+            document.getElementById('function-signature').textContent = questionInfo.function_signature;
+            
+            // Set examples
+            const examplesContainer = document.getElementById('examples-container');
+            examplesContainer.innerHTML = '';
+            
+            if (questionInfo.examples && questionInfo.examples.length > 0) {
+                questionInfo.examples.forEach((example, index) => {
+                    const exampleDiv = document.createElement('div');
+                    exampleDiv.classList.add('example', 'mb-3', 'animate-fade-in');
+                    exampleDiv.style.animationDelay = `${index * 0.1}s`;
+                    exampleDiv.innerHTML = `
+                        <p><strong>Example ${index + 1}:</strong></p>
+                        <p><code>${example.input_text}</code></p>
+                        <p><code>${example.output_text}</code></p>
+                    `;
+                    examplesContainer.appendChild(exampleDiv);
+                });
+            }
+            
+            // Set constraints
+            const constraintsList = document.getElementById('constraints-list');
+            constraintsList.innerHTML = '';
+            
+            if (questionInfo.constraints && questionInfo.constraints.length > 0) {
+                questionInfo.constraints.forEach((constraint, index) => {
+                    const li = document.createElement('li');
+                    li.classList.add('animate-fade-in');
+                    li.style.animationDelay = `${index * 0.1}s`;
+                    li.innerHTML = `<code>${constraint}</code>`;
+                    constraintsList.appendChild(li);
+                });
+            }
+            
+            // Update editor with function template
+            if (editor) {
+                loadedFunction = questionInfo.function_signature;
+                editor.setValue(questionInfo.function_signature + '\n    # Write your solution here\n    pass\n');
+                
+                // Focus on editor and position cursor at a good starting point
+                setTimeout(() => {
+                    editor.focus();
+                    const lineCount = editor.getModel().getLineCount();
+                    const lastLineLength = editor.getModel().getLineContent(lineCount).length;
+                    editor.setPosition({ lineNumber: lineCount - 1, column: 1 });
+                }, 500);
+            }
+            
+            // Show question and editor
+            document.getElementById('question-container').classList.remove('hidden');
+            document.getElementById('editor-container').classList.remove('hidden');
+            document.getElementById('submit-container').classList.remove('hidden');
+            document.getElementById('results-container').classList.add('hidden');
+        }
+        
+        async function submitSolution() {
+            if (!currentQuestionId) {
+                showError('No question is currently active.');
+                return;
+            }
+            
+            const code = editor.getValue();
+            
+            // Basic validation
+            if (!code.includes(loadedFunction)) {
+                showError('Please keep the function signature intact.');
+                return;
+            }
+            
+            // Show loading state on button
+            const submitBtn = document.getElementById('submit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Running tests...';
+            
+            try {
+                const response = await fetch('/api/submit-solution', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question_id: currentQuestionId,
+                        code
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResults(data.results);
+                    
+                    // Dispatch event for Coding Buddy
+                    const event = new CustomEvent('testResults', {
+                        detail: data.results
+                    });
+                    document.dispatchEvent(event);
+                } else {
+                    showError('Failed to submit solution: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('An error occurred while submitting your solution: ' + error.message);
+            } finally {
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+        
+        function displayResults(results) {
+            const resultsContainer = document.getElementById('results-container');
+            const summary = document.getElementById('summary');
+            const testCasesContainer = document.getElementById('test-cases');
+            
+            // Add animation
+            resultsContainer.classList.add('animate-fade-in');
+            
+            // Show results section
+            resultsContainer.classList.remove('hidden');
+            
+            // Update summary
+            if (results.success === false) {
+                summary.className = 'alert alert-danger';
+                summary.innerHTML = `
+                    <h4><i class="fas fa-times-circle me-2"></i>Execution Error</h4>
+                    <p>${results.error}</p>
+                `;
+                testCasesContainer.innerHTML = '';
+                return;
+            }
+            
+            // Update summary based on passing ratio
+            const passingRatio = results.passing_ratio;
+            if (passingRatio === 1) {
+                summary.className = 'alert alert-success';
+                summary.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-check-circle fa-3x"></i>
+                        </div>
+                        <div>
+                            <h4>All Tests Passed!</h4>
+                            <p class="mb-0">You passed ${results.passed_tests} out of ${results.total_tests} tests. Great job!</p>
+                        </div>
+                    </div>
+                    <div class="confetti-container" id="confetti"></div>
+                `;
+                
+                // Show confetti animation for passing all tests
+                showConfetti();
+                
+                // Update stats for successful completion
+                updateStats();
+            } else if (passingRatio >= 0.5) {
+                summary.className = 'alert alert-warning';
+                summary.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-exclamation-triangle fa-3x"></i>
+                        </div>
+                        <div>
+                            <h4>Some Tests Passed</h4>
+                            <p class="mb-0">You passed ${results.passed_tests} out of ${results.total_tests} tests. You're getting closer!</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                summary.className = 'alert alert-danger';
+                summary.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-times-circle fa-3x"></i>
+                        </div>
+                        <div>
+                            <h4>Most Tests Failed</h4>
+                            <p class="mb-0">You passed only ${results.passed_tests} out of ${results.total_tests} tests. Keep trying!</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Update test cases
+            testCasesContainer.innerHTML = '';
+            
+            // Sort test cases: examples first, then by test_id
+            const sortedResults = [...results.results].sort((a, b) => {
+                if (a.is_example && !b.is_example) return -1;
+                if (!a.is_example && b.is_example) return 1;
+                return a.test_id - b.test_id;
+            });
+            
+            sortedResults.forEach((test, index) => {
+                const testDiv = document.createElement('div');
+                testDiv.classList.add('test-case', 'animate-fade-in');
+                testDiv.style.animationDelay = `${index * 0.1}s`;
+                
+                if (test.error) {
+                    testDiv.classList.add('failed');
+                    testDiv.innerHTML = `
+                        <h5><i class="fas fa-times-circle me-2"></i>Test ${test.test_id} ${test.is_example ? '(Example)' : ''}: Failed with Error</h5>
+                        <p><strong>Inputs:</strong> <code>${JSON.stringify(test.inputs)}</code></p>
+                        <p><strong>Expected:</strong> <code>${JSON.stringify(test.expected_output)}</code></p>
+                        <p><strong>Error:</strong> <code>${test.error}</code></p>
+                    `;
+                } else if (test.passed) {
+                    testDiv.classList.add('passed');
+                    testDiv.innerHTML = `
+                        <h5><i class="fas fa-check-circle me-2"></i>Test ${test.test_id} ${test.is_example ? '(Example)' : ''}: Passed</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p><strong>Inputs:</strong></p>
+                                <code>${JSON.stringify(test.inputs)}</code>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Expected:</strong></p>
+                                <code>${JSON.stringify(test.expected_output)}</code>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Your Output:</strong></p>
+                                <code>${JSON.stringify(test.actual_output)}</code>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    testDiv.classList.add('failed');
+                    testDiv.innerHTML = `
+                        <h5><i class="fas fa-times-circle me-2"></i>Test ${test.test_id} ${test.is_example ? '(Example)' : ''}: Failed</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p><strong>Inputs:</strong></p>
+                                <code>${JSON.stringify(test.inputs)}</code>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Expected:</strong></p>
+                                <code>${JSON.stringify(test.expected_output)}</code>
+                            </div>
+                            <div class="col-md-4">
+                                <p><strong>Your Output:</strong></p>
+                                <code>${JSON.stringify(test.actual_output)}</code>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                testCasesContainer.appendChild(testDiv);
+            });
+            
+            // Scroll to results
+            resultsContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function showConfetti() {
+            // Create confetti elements
+            const confettiContainer = document.getElementById('confetti');
+            const colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#8B5CF6'];
+            
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti-piece';
+                confetti.style.width = `${Math.random() * 10 + 5}px`;
+                confetti.style.height = `${Math.random() * 10 + 5}px`;
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.position = 'absolute';
+                confetti.style.top = `-10px`;
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.transformOrigin = 'center';
+                confetti.style.opacity = Math.random() + 0.5;
+                confetti.style.zIndex = '1000';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                
+                // Add animation
+                confetti.style.animation = `
+                    fall ${Math.random() * 3 + 2}s linear forwards,
+                    sway ${Math.random() * 2 + 3}s ease-in-out infinite alternate
+                `;
+                
+                confettiContainer.appendChild(confetti);
+            }
+            
+            // Remove confetti after animation
+            setTimeout(() => {
+                confettiContainer.innerHTML = '';
+            }, 5000);
+        }
+        
+        function updateStats() {
+            // Simple function to update the stats (simulated for now)
+            const problemsElement = document.querySelector('#stats-container .stats-card:nth-child(1) h3');
+            const streakElement = document.querySelector('#stats-container .stats-card:nth-child(2) h3');
+            const pointsElement = document.querySelector('#stats-container .stats-card:nth-child(3) h3');
+            
+            // Get current values
+            let problems = parseInt(problemsElement.textContent.match(/\d+/)[0]);
+            let streak = parseInt(streakElement.textContent.match(/\d+/)[0]);
+            let points = parseInt(pointsElement.textContent.match(/\d+/)[0]);
+            
+            // Update values
+            problems++;
+            streak++;
+            points += 10;
+            
+            // Update UI with animation
+            problemsElement.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>${problems}`;
+            streakElement.innerHTML = `<i class="fas fa-fire text-warning me-2"></i>${streak}`;
+            pointsElement.innerHTML = `<i class="fas fa-star text-primary me-2"></i>${points}`;
+            
+            // Flash animation
+            const statsCards = document.querySelectorAll('.stats-card');
+            statsCards.forEach(card => {
+                card.style.transition = 'all 0.3s ease';
+                card.style.transform = 'scale(1.05)';
+                card.style.boxShadow = '0 15px 30px rgba(79, 70, 229, 0.2)';
+                setTimeout(() => {
+                    card.style.transform = 'scale(1)';
+                    card.style.boxShadow = '0 10px 15px rgba(0,0,0,0.05)';
+                }, 500);
+            });
+        }
+        
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            // Ctrl+Enter or Command+Enter to submit solution
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                if (!document.getElementById('submit-container').classList.contains('hidden')) {
+                    submitSolution();
+                    event.preventDefault();
+                }
+            }
+        });
+        
+        // Load a question when the page loads (optional)
+        window.addEventListener('load', function() {
+            // Show hero section by default
+            document.getElementById('hero-section').classList.remove('hidden');
+            
+            // Initialize tooltips if you want to use Bootstrap tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+        });
+    </script>
+    
+    <!-- Simplified Coding Buddy implementation -->
+    <script>
+        // Simplified Coding Buddy implementation
+        class CodingBuddy {
+            constructor() {
+                this.currentQuestion = null;
+                this.userSolution = null;
+                this.lastTestResults = null;
+                this.messages = [];
+                this.isOpen = false;
+                
+                // Initialize UI elements
+                this.bindEvents();
+            }
+            
+            bindEvents() {
+                // Toggle chatbot visibility
+                const toggleBtn = document.getElementById('coding-buddy-toggle');
+                const chatbot = document.getElementById('coding-buddy');
+                toggleBtn.addEventListener('click', () => {
+                    this.isOpen = !this.isOpen;
+                    if (this.isOpen) {
+                        chatbot.classList.add('open');
+                        setTimeout(() => {
+                            document.getElementById('buddy-message-input').focus();
+                        }, 300);
+                    } else {
+                        chatbot.classList.remove('open');
+                    }
+                });
+                
+                // Close button
+                document.getElementById('buddy-close').addEventListener('click', () => {
+                    this.isOpen = false;
+                    chatbot.classList.remove('open');
+                });
+                
+                // Minimize button
+                document.getElementById('buddy-minimize').addEventListener('click', () => {
+                    this.isOpen = false;
+                    chatbot.classList.remove('open');
+                });
+                
+                // Send message on button click
+                document.getElementById('buddy-send').addEventListener('click', () => {
+                    this.sendUserMessage();
+                });
+                
+                // Send message on Enter key
+                document.getElementById('buddy-message-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.sendUserMessage();
+                    }
+                });
+                
+                // Listen for question generation and code submission events
+                document.addEventListener('questionGenerated', (e) => {
+                    this.currentQuestion = e.detail.question_info;
+                });
+                
+                document.addEventListener('codeSolution', (e) => {
+                    this.userSolution = e.detail.code;
+                });
+                
+                document.addEventListener('testResults', (e) => {
+                    this.lastTestResults = e.detail;
+                });
+            }
+            
+            async sendUserMessage() {
+                const inputEl = document.getElementById('buddy-message-input');
+                const message = inputEl.value.trim();
+                
+                if (message) {
+                    // Add user message to chat
+                    this.addUserMessage(message);
+                    
+                    // Clear input
+                    inputEl.value = '';
+                    
+                    // Process user message with the API
+                    await this.processUserMessageWithAPI(message);
+                }
+            }
+            
+            async processUserMessageWithAPI(message) {
+                // Show typing indicator
+                this.showTypingIndicator();
+                
+                try {
+                    // Call the backend API
+                    const response = await fetch('/api/chat-completion', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            user_message: message,
+                            question_info: this.currentQuestion,
+                            code_solution: this.userSolution,
+                            test_results: this.lastTestResults
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Hide typing indicator
+                    this.hideTypingIndicator();
+                    
+                    // Display the response
+                    if (data.success) {
+                        this.addBuddyMessage(data.message);
+                    } else {
+                        throw new Error(data.error || "Unknown error");
+                    }
+                } catch (error) {
+                    console.error("Error processing message with API:", error);
+                    this.hideTypingIndicator();
+                    this.addBuddyMessage("I'm having trouble connecting. Could you try again?");
+                }
+            }
+            
+            addBuddyMessage(message) {
+                const messagesContainer = document.getElementById('buddy-messages');
+                const messageEl = document.createElement('div');
+                messageEl.className = 'coding-buddy-message buddy-message';
+                
+                // Process markdown-like formatting
+                let formattedMessage = message
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')  // Italic
+                    .replace(/`([^`]+)`/g, '<code>$1</code>')  // Inline code
+                    .replace(/\n/g, '<br>');  // Line breaks
+                
+                // Check for code blocks
+                if (message.includes('```')) {
+                    const parts = message.split('```');
+                    formattedMessage = parts[0];
+                    
+                    for (let i = 1; i < parts.length; i++) {
+                        if (i % 2 === 1) { // This is a code block
+                            let code = parts[i];
+                            // Remove language indicator if present (e.g., ```python)
+                            if (code.startsWith('python\n')) {
+                                code = code.substring(7);
+                            } else if (code.startsWith('python')) {
+                                code = code.substring(6);
+                            }
+                            formattedMessage += `<div class="code-block">${code}</div>`;
+                        } else { // This is normal text
+                            formattedMessage += parts[i]
+                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                                .replace(/\n/g, '<br>');
+                        }
+                    }
+                }
+                
+                messageEl.innerHTML = formattedMessage;
+                messagesContainer.appendChild(messageEl);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                // Add to messages array
+                this.messages.push({
+                    type: 'buddy',
+                    content: message
+                });
+            }
+            
+            addUserMessage(message) {
+                const messagesContainer = document.getElementById('buddy-messages');
+                const messageEl = document.createElement('div');
+                messageEl.className = 'coding-buddy-message user-message';
+                messageEl.textContent = message;
+                messagesContainer.appendChild(messageEl);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                // Add to messages array
+                this.messages.push({
+                    type: 'user',
+                    content: message
+                });
+            }
+            
+            showTypingIndicator() {
+                const messagesContainer = document.getElementById('buddy-messages');
+                const typingIndicator = document.createElement('div');
+                typingIndicator.id = 'typing-indicator';
+                typingIndicator.className = 'buddy-typing';
+                
+                for (let i = 0; i < 3; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'typing-dot';
+                    typingIndicator.appendChild(dot);
+                }
+                
+                messagesContainer.appendChild(typingIndicator);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            hideTypingIndicator() {
+                const typingIndicator = document.getElementById('typing-indicator');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+            }
+        }
+
+        // Initialize the coding buddy when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.codingBuddy = new CodingBuddy();
+        });
+    </script>
+</body>
+</html>
