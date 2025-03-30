@@ -209,9 +209,12 @@ class UserAuth:
         Returns:
             Tuple of (success, message, user_data)
         """
+        conn = None
         try:
-            db = get_db()
-            cursor = db.cursor()
+            # Create a new connection directly instead of using get_db()
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
             
             # Find user by username or email
             cursor.execute(
@@ -221,6 +224,8 @@ class UserAuth:
             user = cursor.fetchone()
             
             if not user:
+                if conn:
+                    conn.close()
                 return False, "Invalid username or password", None
             
             # Check password
@@ -230,7 +235,8 @@ class UserAuth:
                     "INSERT INTO user_activity (user_id, activity_type, ip_address, user_agent) VALUES (?, ?, ?, ?)",
                     (user['id'], "failed_login", request.remote_addr, request.user_agent.string)
                 )
-                db.commit()
+                conn.commit()
+                conn.close()
                 return False, "Invalid username or password", None
             
             # Update last login timestamp
@@ -249,7 +255,7 @@ class UserAuth:
                 (user['id'], "successful_login", request.remote_addr, request.user_agent.string)
             )
             
-            db.commit()
+            conn.commit()
             
             # Prepare user data to return
             user_data = {
@@ -258,17 +264,24 @@ class UserAuth:
                 'email': user['email'],
                 'created_at': user['created_at'],
                 'stats': {
-                    'problems_solved': stats['problems_solved'],
-                    'current_streak': stats['current_streak'],
-                    'longest_streak': stats['longest_streak'],
-                    'points': stats['points']
+                    'problems_solved': stats['problems_solved'] if stats else 0,
+                    'current_streak': stats['current_streak'] if stats else 0,
+                    'longest_streak': stats['longest_streak'] if stats else 0,
+                    'points': stats['points'] if stats else 0
                 }
             }
             
+            conn.close()
             logger.info(f"User logged in successfully: {user['username']}")
             return True, "Login successful", user_data
             
         except Exception as e:
+            if conn:
+                try:
+                    conn.rollback()
+                    conn.close()
+                except:
+                    pass
             logger.error(f"Error during login: {str(e)}")
             return False, f"Login failed: {str(e)}", None
     
@@ -390,7 +403,6 @@ def init_auth_routes(app: Flask):
         return render_template('register.html')
     
     @app.route('/login', methods=['GET', 'POST'])
-   
     def login():
         if request.method == 'POST':
             username_or_email = request.form.get('username_or_email', '').strip()
@@ -402,29 +414,34 @@ def init_auth_routes(app: Flask):
                 flash('All fields are required', 'error')
                 return render_template('login.html')
             
-            # Authenticate the user
-            success, message, user_data = UserAuth.login_user(username_or_email, password)
-            
-            if success and user_data:
-                # Set session data
-                session.clear()
-                session['user_id'] = user_data['id']
-                session['username'] = user_data['username']
+            try:
+                # Authenticate the user
+                success, message, user_data = UserAuth.login_user(username_or_email, password)
                 
-                # Handle "remember me" functionality
-                if remember:
-                    # Session lasts for 30 days
-                    session.permanent = True
-                    app.permanent_session_lifetime = timedelta(days=30)
+                if success and user_data:
+                    # Set session data
+                    session.clear()
+                    session['user_id'] = user_data['id']
+                    session['username'] = user_data['username']
+                    
+                    # Handle "remember me" functionality
+                    if remember:
+                        # Session lasts for 30 days
+                        session.permanent = True
+                        app.permanent_session_lifetime = timedelta(days=30)
+                    else:
+                        # Default session timeout (30 minutes in app.py)
+                        session.permanent = False
+                    
+                    # Redirect to next page or home
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('index'))
                 else:
-                    # Default session timeout (30 minutes in app.py)
-                    session.permanent = False
-                
-                # Redirect to next page or home
-                next_page = request.args.get('next')
-                return redirect(next_page or url_for('index'))
-            else:
-                flash(message, 'error')
+                    flash(message, 'error')
+                    return render_template('login.html')
+            except Exception as e:
+                logger.error(f"Login error: {str(e)}")
+                flash(f'Login error occurred. Please try again.', 'error')
                 return render_template('login.html')
         
         return render_template('login.html')

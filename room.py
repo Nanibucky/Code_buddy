@@ -168,19 +168,16 @@ def create_room(creator_id: str, name: str, difficulty: str = None, topic: str =
         logger.error(f"Error creating room: {str(e)}")
         raise
 
+
+
 def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
     """
     Join an existing room by room code
-    
-    Args:
-        room_code: The unique code for the room
-        user_id: The ID of the user joining
-        
-    Returns:
-        Room details
     """
+    conn = None
     try:
-        conn = get_db()
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         # Check if room exists and is active
@@ -191,7 +188,8 @@ def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
         room = cursor.fetchone()
         
         if not room:
-            conn.close()
+            if conn:
+                conn.close()
             raise ValueError(f"Room with code {room_code} not found or is inactive")
         
         # Check if user is already in the room
@@ -209,68 +207,114 @@ def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
             )
             conn.commit()
         
-        # Get room members
-        cursor.execute(
-            """
-            SELECT u.username, rm.is_creator, u.id as user_id
-            FROM room_members rm
-            JOIN users u ON rm.user_id = u.id
-            WHERE rm.room_id = ?
-            ORDER BY rm.is_creator DESC, rm.joined_at ASC
-            """,
-            (room['id'],)
-        )
-        members = cursor.fetchall()
-        
-        # Get creator username
-        cursor.execute(
-            "SELECT username FROM users WHERE id = ?",
-            (room['creator_id'],)
-        )
-        creator = cursor.fetchone()
-        
-        # Get any submissions if question is assigned
-        submissions = []
-        if room['question_id']:
+        # Get room members with error handling
+        members = []
+        try:
             cursor.execute(
                 """
-                SELECT rs.user_id, u.username, rs.passing_ratio, rs.passed_tests, rs.total_tests, rs.submitted_at
-                FROM room_submissions rs
-                JOIN users u ON rs.user_id = u.id
-                WHERE rs.room_id = ?
-                ORDER BY rs.passing_ratio DESC, rs.submitted_at ASC
+                SELECT rm.user_id, rm.is_creator, 
+                       COALESCE((SELECT username FROM users WHERE id = rm.user_id), 'User' || substr(rm.user_id, 1, 4)) as username
+                FROM room_members rm
+                WHERE rm.room_id = ?
+                ORDER BY rm.is_creator DESC, rm.joined_at ASC
                 """,
                 (room['id'],)
             )
-            submissions = cursor.fetchall()
+            members = cursor.fetchall()
+        except sqlite3.OperationalError:
+            # Fallback if users table issue
+            cursor.execute(
+                """
+                SELECT user_id, is_creator, 'User' || substr(user_id, 1, 4) as username
+                FROM room_members 
+                WHERE room_id = ?
+                ORDER BY is_creator DESC, joined_at ASC
+                """,
+                (room['id'],)
+            )
+            members = cursor.fetchall()
         
-        conn.close()
+        # Convert members to list of dicts
+        members_list = []
+        for m in members:
+            members_list.append({
+                'username': m['username'],
+                'user_id': m['user_id'],
+                'is_creator': bool(m['is_creator'])
+            })
         
-        # Convert to dict for return
-        room_dict = {
-            'id': room['id'],
-            'room_code': room['room_code'],
-            'creator_id': room['creator_id'],
-            'creator_name': creator['username'] if creator else "Unknown",
-            'name': room['name'],
-            'question_id': room['question_id'],
-            'difficulty': room['difficulty'],
-            'topic': room['topic'],
-            'created_at': room['created_at'],
-            'is_active': bool(room['is_active']),
-            'members': [{'username': m['username'], 'user_id': m['user_id'], 'is_creator': bool(m['is_creator'])} for m in members],
-            'submissions': [{
+        # Get submissions with similar error handling
+        submissions = []
+        if room['question_id']:
+            try:
+                cursor.execute(
+                    """
+                    SELECT rs.user_id, 
+                           COALESCE((SELECT username FROM users WHERE id = rs.user_id), 'User' || substr(rs.user_id, 1, 4)) as username,
+                           rs.passing_ratio, rs.passed_tests, rs.total_tests, rs.submitted_at
+                    FROM room_submissions rs
+                    WHERE rs.room_id = ?
+                    ORDER BY rs.passing_ratio DESC, rs.submitted_at ASC
+                    """,
+                    (room['id'],)
+                )
+                submissions = cursor.fetchall()
+            except sqlite3.OperationalError:
+                # Fallback if users table issue
+                cursor.execute(
+                    """
+                    SELECT user_id, 'User' as username, passing_ratio, passed_tests, total_tests, submitted_at
+                    FROM room_submissions
+                    WHERE room_id = ?
+                    ORDER BY passing_ratio DESC, submitted_at ASC
+                    """,
+                    (room['id'],)
+                )
+                submissions = cursor.fetchall()
+        
+        # Get creator info with error handling
+        creator_name = "Unknown"
+        try:
+            cursor.execute(
+                "SELECT username FROM users WHERE id = ?",
+                (room['creator_id'],)
+            )
+            creator = cursor.fetchone()
+            if creator:
+                creator_name = creator['username']
+        except sqlite3.OperationalError:
+            # Fallback if users table issue
+            pass
+        
+        # Convert submissions to list of dicts
+        submissions_list = []
+        for s in submissions:
+            submissions_list.append({
                 'user_id': s['user_id'],
                 'username': s['username'],
                 'passing_ratio': s['passing_ratio'],
                 'passed_tests': s['passed_tests'],
                 'total_tests': s['total_tests'],
                 'submitted_at': s['submitted_at']
-            } for s in submissions] if submissions else []
-        }
+            })
         
-        logger.info(f"User {user_id} joined room {room_code}")
-        return room_dict
+        conn.close()
+        
+        # Format the response with all data
+        return {
+            'id': room['id'],
+            'room_code': room['room_code'],
+            'creator_id': room['creator_id'],
+            'creator_name': creator_name,
+            'name': room['name'],
+            'question_id': room['question_id'],
+            'difficulty': room['difficulty'],
+            'topic': room['topic'],
+            'created_at': room['created_at'],
+            'is_active': bool(room['is_active']),
+            'members': members_list,
+            'submissions': submissions_list
+        }
         
     except Exception as e:
         if conn:
@@ -281,10 +325,21 @@ def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
 
 def get_room_by_code(room_code: str) -> Optional[Dict[str, Any]]:
     """Get room details by room code"""
+    conn = None
     try:
-        conn = get_db()
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
+        # Ensure tables exist
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='rooms'")
+        if not cursor.fetchone():
+            init_room_db()
+            # The room likely doesn't exist if we had to initialize tables
+            conn.close()
+            return None
+            
+        # Get the room by code
         cursor.execute(
             "SELECT * FROM rooms WHERE room_code = ?",
             (room_code,)
@@ -294,68 +349,114 @@ def get_room_by_code(room_code: str) -> Optional[Dict[str, Any]]:
         if not room:
             conn.close()
             return None
-        
-        # Get room members
-        cursor.execute(
-            """
-            SELECT u.username, rm.is_creator, u.id as user_id
-            FROM room_members rm
-            JOIN users u ON rm.user_id = u.id
-            WHERE rm.room_id = ?
-            ORDER BY rm.is_creator DESC, rm.joined_at ASC
-            """,
-            (room['id'],)
-        )
-        members = cursor.fetchall()
-        
-        # Get creator username
-        cursor.execute(
-            "SELECT username FROM users WHERE id = ?",
-            (room['creator_id'],)
-        )
-        creator = cursor.fetchone()
-        
-        # Get any submissions if question is assigned
-        submissions = []
-        if room['question_id']:
+            
+        # Get room members with error handling for users table
+        members = []
+        try:
             cursor.execute(
                 """
-                SELECT rs.user_id, u.username, rs.passing_ratio, rs.passed_tests, rs.total_tests, rs.submitted_at
-                FROM room_submissions rs
-                JOIN users u ON rs.user_id = u.id
-                WHERE rs.room_id = ?
-                ORDER BY rs.passing_ratio DESC, rs.submitted_at ASC
+                SELECT rm.user_id, rm.is_creator, 
+                       COALESCE((SELECT username FROM users WHERE id = rm.user_id), 'User' || substr(rm.user_id, 1, 4)) as username
+                FROM room_members rm
+                WHERE rm.room_id = ?
+                ORDER BY rm.is_creator DESC, rm.joined_at ASC
                 """,
                 (room['id'],)
             )
-            submissions = cursor.fetchall()
+            members = cursor.fetchall()
+        except sqlite3.OperationalError:
+            # Fallback if users table issue
+            cursor.execute(
+                """
+                SELECT user_id, is_creator, 'User' || substr(user_id, 1, 4) as username
+                FROM room_members
+                WHERE room_id = ?
+                ORDER BY is_creator DESC, joined_at ASC
+                """,
+                (room['id'],)
+            )
+            members = cursor.fetchall()
         
-        conn.close()
+        # Get creator info with error handling
+        creator_name = "Unknown"
+        try:
+            cursor.execute(
+                "SELECT username FROM users WHERE id = ?",
+                (room['creator_id'],)
+            )
+            creator = cursor.fetchone()
+            if creator:
+                creator_name = creator['username']
+        except sqlite3.OperationalError:
+            # Fallback if users table issue
+            pass
         
-        # Convert to dict for return
-        room_dict = {
-            'id': room['id'],
-            'room_code': room['room_code'],
-            'creator_id': room['creator_id'],
-            'creator_name': creator['username'] if creator else "Unknown",
-            'name': room['name'],
-            'question_id': room['question_id'],
-            'difficulty': room['difficulty'],
-            'topic': room['topic'],
-            'created_at': room['created_at'],
-            'is_active': bool(room['is_active']),
-            'members': [{'username': m['username'], 'user_id': m['user_id'], 'is_creator': bool(m['is_creator'])} for m in members],
-            'submissions': [{
+        # Get submissions with error handling
+        submissions = []
+        if room['question_id']:
+            try:
+                cursor.execute(
+                    """
+                    SELECT rs.user_id, 
+                           COALESCE((SELECT username FROM users WHERE id = rs.user_id), 'User' || substr(rs.user_id, 1, 4)) as username,
+                           rs.passing_ratio, rs.passed_tests, rs.total_tests, rs.submitted_at
+                    FROM room_submissions rs
+                    WHERE rs.room_id = ?
+                    ORDER BY rs.passing_ratio DESC, rs.submitted_at ASC
+                    """,
+                    (room['id'],)
+                )
+                submissions = cursor.fetchall()
+            except sqlite3.OperationalError:
+                # Fallback if users table issue
+                cursor.execute(
+                    """
+                    SELECT user_id, 'Anonymous' as username, passing_ratio, passed_tests, total_tests, submitted_at
+                    FROM room_submissions
+                    WHERE room_id = ?
+                    ORDER BY passing_ratio DESC, submitted_at ASC
+                    """,
+                    (room['id'],)
+                )
+                submissions = cursor.fetchall()
+        
+        # Format the response with proper conversions
+        members_list = []
+        for m in members:
+            members_list.append({
+                'username': m['username'],
+                'user_id': m['user_id'],
+                'is_creator': bool(m['is_creator'])
+            })
+            
+        submissions_list = []
+        for s in submissions:
+            submissions_list.append({
                 'user_id': s['user_id'],
                 'username': s['username'],
                 'passing_ratio': s['passing_ratio'],
                 'passed_tests': s['passed_tests'],
                 'total_tests': s['total_tests'],
                 'submitted_at': s['submitted_at']
-            } for s in submissions] if submissions else []
-        }
+            })
         
-        return room_dict
+        conn.close()
+        
+        # Return the formatted room data
+        return {
+            'id': room['id'],
+            'room_code': room['room_code'],
+            'creator_id': room['creator_id'],
+            'creator_name': creator_name,
+            'name': room['name'],
+            'question_id': room['question_id'],
+            'difficulty': room['difficulty'],
+            'topic': room['topic'],
+            'created_at': room['created_at'],
+            'is_active': bool(room['is_active']),
+            'members': members_list,
+            'submissions': submissions_list
+        }
         
     except Exception as e:
         if conn:
@@ -469,6 +570,7 @@ def record_submission(room_id: str, user_id: str, code: str, results: Dict[str, 
         logger.error(f"Error recording submission: {str(e)}")
         return False
 
+# Fix for get_user_rooms in room.py
 def get_user_rooms(user_id: str) -> List[Dict[str, Any]]:
     """
     Get all rooms a user is a member of
@@ -479,38 +581,73 @@ def get_user_rooms(user_id: str) -> List[Dict[str, Any]]:
     Returns:
         List of rooms
     """
+    conn = None
     try:
-        conn = get_db()
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        cursor.execute(
-            """
-            SELECT r.*, u.username as creator_name, 
-                  (SELECT COUNT(*) FROM room_members WHERE room_id = r.id) as member_count
-            FROM rooms r
-            JOIN users u ON r.creator_id = u.id
-            JOIN room_members rm ON r.id = rm.room_id
-            WHERE rm.user_id = ? AND r.is_active = 1
-            ORDER BY r.created_at DESC
-            """,
-            (user_id,)
-        )
-        rooms = cursor.fetchall()
+        # First check if tables exist
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='rooms'")
+        if not cursor.fetchone():
+            logger.warning("Rooms table not found, initializing database")
+            init_room_db()
+            
+            # Return empty list if we just initialized the DB
+            conn.close()
+            return []
         
+        # Get all rooms the user is a member of with error handling
+        try:
+            cursor.execute(
+                """
+                SELECT r.*, 
+                      COALESCE((SELECT username FROM users WHERE id = r.creator_id), 'Unknown') as creator_name,
+                      (SELECT COUNT(*) FROM room_members WHERE room_id = r.id) as member_count
+                FROM rooms r
+                JOIN room_members rm ON r.id = rm.room_id
+                WHERE rm.user_id = ? AND r.is_active = 1
+                ORDER BY r.created_at DESC
+                """,
+                (user_id,)
+            )
+        except sqlite3.OperationalError as e:
+            # Fallback query if users table doesn't exist
+            logger.error(f"Error in get_user_rooms join query: {str(e)}")
+            cursor.execute(
+                """
+                SELECT r.*, 
+                      'Unknown' as creator_name,
+                      (SELECT COUNT(*) FROM room_members WHERE room_id = r.id) as member_count
+                FROM rooms r
+                JOIN room_members rm ON r.id = rm.room_id
+                WHERE rm.user_id = ? AND r.is_active = 1
+                ORDER BY r.created_at DESC
+                """,
+                (user_id,)
+            )
+            
+        rooms = cursor.fetchall()
         conn.close()
         
-        return [{
-            'id': room['id'],
-            'room_code': room['room_code'],
-            'creator_id': room['creator_id'],
-            'creator_name': room['creator_name'],
-            'name': room['name'],
-            'has_question': bool(room['question_id']),
-            'difficulty': room['difficulty'],
-            'topic': room['topic'],
-            'created_at': room['created_at'],
-            'member_count': room['member_count']
-        } for room in rooms]
+        # Convert to list of dicts
+        result = []
+        for room in rooms:
+            room_dict = {
+                'id': room['id'],
+                'room_code': room['room_code'],
+                'creator_id': room['creator_id'],
+                'creator_name': room['creator_name'],
+                'name': room['name'],
+                'has_question': bool(room['question_id']),
+                'difficulty': room['difficulty'],
+                'topic': room['topic'],
+                'created_at': room['created_at'],
+                'member_count': room['member_count']
+            }
+            result.append(room_dict)
+            
+        return result
         
     except Exception as e:
         if conn:

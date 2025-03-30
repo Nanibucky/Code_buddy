@@ -10,7 +10,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- Add this to the head section if not already present -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/coding-buddy.css') }}">
     <style>
         .room-layout {
             display: grid;
@@ -361,6 +364,28 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Stats Cards -->
+        <div class="row mb-4" id="stats-container">
+            <div class="col-md-4">
+                <div class="stats-card shimmer">
+                    <h3><i class="fas fa-check-circle text-success me-2"></i>{{ user_stats.problems_solved|default(0) }}</h3>
+                    <p>Problems Solved</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card shimmer">
+                    <h3><i class="fas fa-fire text-warning me-2"></i>{{ user_stats.current_streak|default(0) }}</h3>
+                    <p>Current Streak</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card shimmer">
+                    <h3><i class="fas fa-star text-primary me-2"></i>{{ user_stats.points|default(0) }}</h3>
+                    <p>Points Earned</p>
+                </div>
+            </div>
+        </div>
         
         <!-- Room Layout -->
         <div class="room-layout">
@@ -417,46 +442,44 @@
                         <p class="text-muted">No coding challenge has been assigned to this room yet.</p>
                         
                         {% if is_creator %}
-                            <div class="mt-4">
-                                <button id="assign-question-btn" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-plus-circle me-2"></i>Assign a Question
-                                </button>
-                            </div>
-                            
-                            <div id="question-options" class="mt-4" style="display: none;">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5>Question Settings</h5>
-                                        
-                                        <div class="mb-3">
-                                            <label for="question-difficulty" class="form-label">Difficulty</label>
-                                            <select class="form-select" id="question-difficulty">
-                                                <option value="easy" {% if room.difficulty == 'easy' %}selected{% endif %}>Easy</option>
-                                                <option value="medium" {% if room.difficulty == 'medium' or not room.difficulty %}selected{% endif %}>Medium</option>
-                                                <option value="hard" {% if room.difficulty == 'hard' %}selected{% endif %}>Hard</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="question-topic" class="form-label">Topic (Optional)</label>
-                                            <select class="form-select" id="question-topic">
-                                                <option value="" {% if not room.topic %}selected{% endif %}>Any Topic</option>
-                                                <option value="arrays" {% if room.topic == 'arrays' %}selected{% endif %}>Arrays</option>
-                                                <option value="strings" {% if room.topic == 'strings' %}selected{% endif %}>Strings</option>
-                                                <option value="linked-lists" {% if room.topic == 'linked-lists' %}selected{% endif %}>Linked Lists</option>
-                                                <option value="trees" {% if room.topic == 'trees' %}selected{% endif %}>Trees</option>
-                                                <option value="recursion" {% if room.topic == 'recursion' %}selected{% endif %}>Recursion</option>
-                                                <option value="dynamic-programming" {% if room.topic == 'dynamic-programming' %}selected{% endif %}>Dynamic Programming</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="d-grid">
-                                            <button id="generate-question-btn" class="btn btn-primary">
-                                                <i class="fas fa-magic me-2"></i>Generate Question
-                                            </button>
-                                        </div>
+                            <div id="controls" class="row g-3 mt-4">
+                                <div class="col-md-4">
+                                    <div class="form-floating">
+                                        <select class="form-select" id="generate-difficulty">
+                                            <option value="easy" {% if room.difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                                            <option value="medium" {% if room.difficulty == 'medium' or not room.difficulty %}selected{% endif %}>Medium</option>
+                                            <option value="hard" {% if room.difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                                        </select>
+                                        <label for="generate-difficulty"><i class="fas fa-layer-group me-1"></i> Difficulty</label>
                                     </div>
                                 </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="form-floating">
+                                        <select class="form-select" id="generate-topic">
+                                            <option value="" {% if not room.topic %}selected{% endif %}>Any Topic</option>
+                                            <option value="arrays" {% if room.topic == 'arrays' %}selected{% endif %}>Arrays</option>
+                                            <option value="strings" {% if room.topic == 'strings' %}selected{% endif %}>Strings</option>
+                                            <option value="linked-lists" {% if room.topic == 'linked-lists' %}selected{% endif %}>Linked Lists</option>
+                                            <option value="trees" {% if room.topic == 'trees' %}selected{% endif %}>Trees</option>
+                                            <option value="recursion" {% if room.topic == 'recursion' %}selected{% endif %}>Recursion</option>
+                                            <option value="dynamic-programming" {% if room.topic == 'dynamic-programming' %}selected{% endif %}>Dynamic Programming</option>
+                                        </select>
+                                        <label for="generate-topic"><i class="fas fa-tag me-1"></i> Topic</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <button class="btn btn-primary w-100 h-100" id="generate-question-btn">
+                                        <i class="fas fa-random me-2"></i> Generate Challenge
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Loading indicator -->
+                            <div id="loading" class="text-center hidden mt-4">
+                                <div class="loader"></div>
+                                <p class="lead text-center text-muted">Crafting your perfect challenge...</p>
                             </div>
                         {% endif %}
                     </div>
@@ -551,8 +574,12 @@
         Room code copied to clipboard!
     </div>
     
+    
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Coding Buddy JavaScript -->
+    <script src="{{ url_for('static', filename='js/coding-buddy.js') }}"></script>
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -569,14 +596,14 @@
             // Room code sharing functionality
             setupShareButton();
             
-            // Question assignment functionality for room creator
-            setupQuestionAssignment();
-            
             // Room settings functionality
             setupRoomSettings();
             
             // Room status polling
             setupRoomStatusPolling();
+            
+            // Setup question generation
+            setupQuestionGeneration();
             
             // FUNCTIONS
             
@@ -630,31 +657,25 @@
                 }
             }
             
-            // Question assignment functionality
-            function setupQuestionAssignment() {
-                const assignQuestionBtn = document.getElementById('assign-question-btn');
-                const questionOptions = document.getElementById('question-options');
+            // Setup question generation
+            function setupQuestionGeneration() {
                 const generateQuestionBtn = document.getElementById('generate-question-btn');
-                
-                if (assignQuestionBtn && questionOptions) {
-                    assignQuestionBtn.addEventListener('click', function() {
-                        questionOptions.style.display = 'block';
-                        assignQuestionBtn.style.display = 'none';
-                    });
-                }
+                const loadingIndicator = document.getElementById('loading');
                 
                 if (generateQuestionBtn) {
                     generateQuestionBtn.addEventListener('click', function() {
                         // Show loading state
                         generateQuestionBtn.disabled = true;
-                        generateQuestionBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+                        if (loadingIndicator) {
+                            loadingIndicator.classList.remove('hidden');
+                        }
                         
                         // Get values from form
-                        const difficulty = document.getElementById('question-difficulty').value;
-                        const topic = document.getElementById('question-topic').value;
+                        const difficulty = document.getElementById('generate-difficulty').value;
+                        const topic = document.getElementById('generate-topic').value;
                         
                         // Make API request to assign question
-                        fetch('/api/room/' + roomData.id + '/assign-question', {
+                        fetch('/api/room/' + "{{ room.id }}" + '/assign-question', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -674,7 +695,9 @@
                                 
                                 // Reset button state
                                 generateQuestionBtn.disabled = false;
-                                generateQuestionBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate Question';
+                                if (loadingIndicator) {
+                                    loadingIndicator.classList.add('hidden');
+                                }
                             }
                         })
                         .catch(error => {
@@ -683,7 +706,9 @@
                             
                             // Reset button state
                             generateQuestionBtn.disabled = false;
-                            generateQuestionBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate Question';
+                            if (loadingIndicator) {
+                                loadingIndicator.classList.add('hidden');
+                            }
                         });
                     });
                 }
@@ -700,9 +725,9 @@
                     return;
                 }
                 
-                // Track original values
-                const originalDifficulty = difficultySelect.value;
-                const originalTopic = topicSelect.value;
+                // Store original values
+                let originalDifficulty = difficultySelect.value;
+                let originalTopic = topicSelect.value;
                 
                 // Show save button when values change
                 function checkChanges() {
@@ -766,30 +791,29 @@
             
             // Room status polling
             function setupRoomStatusPolling() {
-                // Only set up polling if needed (no question assigned yet)
-                if (!roomData.hasQuestion) {
-                    setInterval(pollRoomStatus, 30000); // Poll every 30 seconds
-                }
+                // Poll every 15 seconds
+                setInterval(pollRoomStatus, 15000);
                 
                 function pollRoomStatus() {
                     fetch('/api/room/' + roomData.code + '/status')
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
+                                // Check for significant changes
                                 let shouldReload = false;
                                 
-                                // Check if question is assigned and we don't have one
+                                // Check if question assigned and we don't have one
                                 if (data.room.question && !roomData.hasQuestion) {
                                     shouldReload = true;
                                 }
                                 
-                                // Check if new members joined
-                                if (data.room.members.length > roomData.memberCount) {
+                                // Check if member count changed
+                                if (data.room.members.length !== roomData.memberCount) {
                                     shouldReload = true;
                                 }
                                 
-                                // Check for new submissions
-                                if (data.room.submissions > roomData.submissionCount) {
+                                // Check if submission count changed
+                                if (data.room.submissions !== roomData.submissionCount) {
                                     shouldReload = true;
                                 }
                                 
@@ -803,3 +827,51 @@
             }
         });
     </script>
+
+
+    <!-- Coding Buddy Chat Interface -->
+    <div id="coding-buddy-container" class="coding-buddy-container">
+        <div class="coding-buddy-header">
+            <h5><i class="fas fa-robot me-2"></i>Coding Buddy</h5>
+            <div class="coding-buddy-controls">
+                <button id="buddy-minimize" class="buddy-control-btn">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="buddy-close" class="buddy-control-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="coding-buddy-body">
+            <div id="buddy-messages" class="coding-buddy-messages">
+                <!-- Messages will appear here -->
+            </div>
+        </div>
+        <div class="coding-buddy-input">
+            <input type="text" id="buddy-message-input" placeholder="Ask about your code or the problem...">
+            <button id="buddy-send-button">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    <button id="coding-buddy-toggle" class="coding-buddy-toggle">
+        <i class="fas fa-comment-dots"></i>
+    </button>
+
+    <!-- Load coding-buddy.js script -->
+    <script src="{{ url_for('static', filename='js/coding-buddy.js') }}"></script>
+
+    <!-- Initialize the coding buddy explicitly -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the coding buddy
+            if (typeof CodingBuddy === 'function') {
+                window.codingBuddy = new CodingBuddy();
+                console.log("Coding Buddy successfully initialized");
+            } else {
+                console.error("CodingBuddy class not found! Check if coding-buddy.js loaded correctly");
+            }
+        });
+    </script>
+</body>
+</html>

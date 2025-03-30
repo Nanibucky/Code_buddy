@@ -41,7 +41,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app with proper configuration
+# In app.py - Replace the @app.before_first_request approach with this
+
+# Remove the @app.before_first_request decorator and function
+
+# Instead, add this code near your app initialization
+def initialize_databases():
+    """Ensure all database tables are created"""
+    # Initialize auth database
+    auth.init_db()
+    # Initialize room database
+    room.init_room_db()
+    logger.info("All databases initialized at startup")
+
+# Then call the function immediately after app initialization
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.getenv('SECRET_KEY', os.urandom(24))
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1MB max-limit
@@ -51,6 +64,31 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
 
 # For proper IP handling behind proxies
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Initialize databases
+initialize_databases()
+
+
+# Add to top of app.py
+def ensure_db_initialized():
+    """Make sure all database tables exist"""
+    try:
+        # Initialize auth database
+        auth.init_db()
+        
+        # Initialize room database
+        room.init_room_db()
+        
+        logger.info("All databases initialized at startup")
+        return True
+    except Exception as e:
+        logger.error(f"Database initialization error: {str(e)}")
+        return False
+
+# Call this after setting up the app but before any routes
+ensure_db_initialized()
+
+
 
 # Initialize OpenAI client
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -67,7 +105,34 @@ auth.init_db()
 # Initialize room database
 room.init_room_db()
 
-# Add these routes to your app.py file
+
+# In app.py
+
+@app.before_request
+def check_databases():
+    # Verify the database tables exist before each request
+    try:
+        auth_conn = auth.get_db()
+        auth_cursor = auth_conn.cursor()
+        auth_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        if not auth_cursor.fetchone():
+            auth.init_db()
+            logger.info("Auth database initialized before request")
+        auth_conn.close()
+        
+        room_conn = room.get_db()
+        room_cursor = room_conn.cursor()
+        room_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='rooms'")
+        if not room_cursor.fetchone():
+            room.init_room_db()
+            logger.info("Room database initialized before request")
+        room_conn.close()
+    except Exception as e:
+        logger.error(f"Database check error: {str(e)}")
+
+
+
+
 
 @app.route('/rooms')
 @login_required
@@ -77,12 +142,12 @@ def rooms():
     user_rooms = room.get_user_rooms(user_id)
     return render_template('room.html', rooms=user_rooms)  # Change 'rooms.html' to 'room.html'
 
+# Fix for create_room function in app.py
 @app.route('/rooms/create', methods=['GET', 'POST'])
 @login_required
 def create_room():
     """Create a new coding room"""
     if request.method == 'POST':
-        # Change this to get form data instead of JSON
         room_name = request.form.get('room_name', '').strip()
         difficulty = request.form.get('difficulty', 'medium')
         topic = request.form.get('topic', '')
@@ -93,10 +158,22 @@ def create_room():
         
         try:
             user_id = session.get('user_id')
+            
+            # Create room
             new_room = room.create_room(user_id, room_name, difficulty, topic)
             
-            flash(f'Room created successfully! Room code: {new_room["room_code"]}', 'success')
-            return redirect(url_for('room_detail', room_code=new_room['room_code']))
+            # Add a delay to ensure database writes are complete
+            time.sleep(0.5)
+            
+            # Verify room was created successfully
+            verification = room.get_room_by_code(new_room['room_code'])
+            if verification:
+                flash(f'Room created successfully! Room code: {new_room["room_code"]}', 'success')
+                # After creating, redirect to rooms list instead of detail page
+                return redirect(url_for('rooms'))
+            else:
+                flash('Room created but could not be verified. Please try again.', 'error')
+                return redirect(url_for('rooms'))
             
         except Exception as e:
             logger.error(f"Error creating room: {str(e)}")
@@ -428,27 +505,45 @@ def join_room():
 def room_detail(room_code):
     """Show room details and current question"""
     try:
+        # Try to get the room and gracefully handle failure
         room_data = room.get_room_by_code(room_code)
         
         if not room_data:
-            flash('Room not found', 'error')
+            flash(f'Room with code {room_code} not found. Please check the code and try again.', 'error')
             return redirect(url_for('rooms'))
         
         user_id = session.get('user_id')
         
         # Check if user is a member of this room
-        is_member = any(member['user_id'] == user_id for member in room_data['members'])
+        is_member = False
+        for member in room_data.get('members', []):
+            if member.get('user_id') == user_id:
+                is_member = True
+                break
         
         if not is_member:
             # Automatically join the room
-            room_data = room.join_room(room_code, user_id)
+            try:
+                room_data = room.join_room(room_code, user_id)
+            except Exception as e:
+                logger.error(f"Error joining room: {str(e)}")
+                flash(f'Error joining room: {str(e)}', 'error')
+                return redirect(url_for('rooms'))
         
         # Check if user is the creator
-        is_creator = room_data['creator_id'] == user_id
+        is_creator = room_data.get('creator_id') == user_id
+        
+        # Get user stats
+        user_stats = {
+            'problems_solved': 0,
+            'current_streak': 0,
+            'longest_streak': 0,
+            'points': 0
+        }
         
         # Get question data if assigned
         question_data = None
-        if room_data['question_id']:
+        if room_data.get('question_id'):
             question_id = room_data['question_id']
             question_data = questions_db.get(question_id)
             
@@ -462,15 +557,17 @@ def room_detail(room_code):
                     'example_test_cases': example_test_cases
                 }
         
+        # Success! Render the template with the data
         return render_template(
-            'room_detail.html',  # Make sure this template file exists
+            'room_detail.html',
             room=room_data, 
             is_creator=is_creator,
-            question=question_data
+            question=question_data,
+            user_stats=user_stats
         )
         
     except Exception as e:
-        logger.error(f"Error accessing room: {str(e)}")
+        logger.error(f"Error in room_detail: {str(e)}")
         flash(f'Error accessing room: {str(e)}', 'error')
         return redirect(url_for('rooms'))
 
@@ -489,10 +586,46 @@ def api_assign_question(room_id):
         if difficulty not in ['easy', 'medium', 'hard']:
             return jsonify({'success': False, 'error': 'Invalid difficulty level'}), 400
         
+        # Get current user
+        user_id = session.get('user_id')
+        
+        # Verify the user is the room creator
+        conn = room.get_db()
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT creator_id FROM rooms WHERE id = ?",
+            (room_id,)
+        )
+        
+        room_data = cursor.fetchone()
+        
+        if not room_data:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Room not found'
+            }), 404
+            
+        if room_data['creator_id'] != user_id:
+            conn.close()
+            return jsonify({
+                'success': False, 
+                'error': 'Only the room creator can assign questions'
+            }), 403
+            
+        # Update room settings first
+        cursor.execute(
+            "UPDATE rooms SET difficulty = ?, topic = ? WHERE id = ?",
+            (difficulty, topic, room_id)
+        )
+        conn.commit()
+        
         # Generate a question
         question_response = question_generator.generate_question(difficulty, topic)
         
         if not question_response.get('success'):
+            conn.close()
             return jsonify({
                 'success': False, 
                 'error': 'Failed to generate question'
@@ -514,12 +647,12 @@ def api_assign_question(room_id):
         }
         
         # Assign to the room
-        user_id = session.get('user_id')
-        if not room.assign_question_to_room(room_id, question_id, user_id):
-            return jsonify({
-                'success': False, 
-                'error': 'Failed to assign question to room'
-            }), 500
+        cursor.execute(
+            "UPDATE rooms SET question_id = ? WHERE id = ?",
+            (question_id, room_id)
+        )
+        conn.commit()
+        conn.close()
         
         # Extract example test cases for the response
         example_test_cases = [tc for tc in test_cases if tc.get('is_example', False)]
@@ -533,6 +666,9 @@ def api_assign_question(room_id):
         
     except Exception as e:
         logger.exception("Error in room question assignment")
+        if 'conn' in locals() and conn:
+            conn.rollback()
+            conn.close()
         return jsonify({
             'success': False,
             'error': f'Server error: {str(e)}'
@@ -1955,6 +2091,8 @@ class CodeTester:
 
 
 # Initialize components
+auth.init_db()
+room.init_room_db()
 question_generator = LLMQuestionGenerator()
 test_case_generator = TestCaseGenerator(Pynguine())
 code_tester = CodeTester()
@@ -1965,6 +2103,9 @@ questions_db = TTLCache(maxsize=app.config['MAX_CACHE_SIZE'], ttl=app.config['CA
 
 # Initialize authentication routes
 auth.init_auth(app)
+
+
+
 
 # Add context processors for user data
 @app.context_processor
@@ -2030,8 +2171,45 @@ def index():
         # User is not logged in, redirect to login page
         return redirect(url_for('login'))
     
+    # Check if we're coming from a room with a question
+    room_id = request.args.get('room_id')
+    question_id = request.args.get('question_id')
+    
+    # If we have both room_id and question_id, load that specific question
+    preloaded_question = None
+    room_data = None
+    
+    if room_id and question_id:
+        try:
+            # Get the room data to verify user membership
+            conn = room.get_db()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM rooms WHERE id = ?", (room_id,))
+            room_data = cursor.fetchone()
+            
+            if room_data and room_data['question_id'] == question_id:
+                # Verify user is a member of this room
+                cursor.execute(
+                    "SELECT id FROM room_members WHERE room_id = ? AND user_id = ?", 
+                    (room_id, session['user_id'])
+                )
+                if cursor.fetchone():
+                    # User is a member, get the question
+                    question_data = questions_db.get(question_id)
+                    if question_data:
+                        preloaded_question = {
+                            'question_id': question_id,
+                            'question_info': question_data['question_info'],
+                            'example_test_cases': [tc for tc in question_data['test_cases'] if tc.get('is_example', False)]
+                        }
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error loading room question: {e}")
+            if 'conn' in locals() and conn:
+                conn.close()
+    
     # User is logged in, show the main app
-    return render_template('index.html')
+    return render_template('index.html', preloaded_question=preloaded_question, room_data=room_data)
 
 @app.route('/favicon.ico')
 def favicon():
