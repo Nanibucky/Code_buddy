@@ -7,6 +7,7 @@ import json
 import sqlite3
 from typing import Dict, List, Any, Optional, Tuple
 import logging
+import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -24,160 +25,264 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_auth_db():
+    """Get a connection to the auth database"""
+    auth_db_path = os.path.join(os.getcwd(), 'database', 'users.db')
+    # Check if the file exists and initialize if it doesn't
+    if not os.path.exists(auth_db_path):
+        os.makedirs(os.path.dirname(auth_db_path), exist_ok=True)
+        import auth
+        auth.init_db()
+    conn = sqlite3.connect(auth_db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def init_room_db():
     """Initialize the database tables for rooms"""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # Create rooms table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS rooms (
-        id TEXT PRIMARY KEY,
-        room_code TEXT UNIQUE NOT NULL,
-        creator_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        question_id TEXT,
-        difficulty TEXT,
-        topic TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_active BOOLEAN DEFAULT 1,
-        FOREIGN KEY (creator_id) REFERENCES users (id)
-    )
-    ''')
-    
-    # Create room_members table to track participants
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS room_members (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        room_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_creator BOOLEAN DEFAULT 0,
-        FOREIGN KEY (room_id) REFERENCES rooms (id),
-        FOREIGN KEY (user_id) REFERENCES users (id),
-        UNIQUE(room_id, user_id)
-    )
-    ''')
-    
-    # Create room_submissions table to track participant solutions
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS room_submissions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        room_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        code TEXT NOT NULL,
-        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        passing_ratio REAL,
-        passed_tests INTEGER,
-        total_tests INTEGER,
-        FOREIGN KEY (room_id) REFERENCES rooms (id),
-        FOREIGN KEY (user_id) REFERENCES users (id)
-    )
-    ''')
-    
-    conn.commit()
-    conn.close()
-    
-    logger.info("Room database tables initialized successfully")
+    try:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        
+        # First ensure the users table exists in auth database
+        auth_db_path = os.path.join(os.getcwd(), 'database', 'users.db')
+        if not os.path.exists(auth_db_path):
+            logger.warning("Auth database not found, initializing it first")
+            import auth
+            auth.init_db()
+        
+        # Connect to both databases
+        auth_conn = sqlite3.connect(auth_db_path)
+        room_conn = get_db()
+        
+        auth_cursor = auth_conn.cursor()
+        room_cursor = room_conn.cursor()
+        
+        # Verify users table exists in auth database
+        auth_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        if not auth_cursor.fetchone():
+            logger.warning("Users table not found, initializing auth database")
+            auth.init_db()
+        
+        # Create rooms table without foreign key constraint
+        room_cursor.execute('''
+        CREATE TABLE IF NOT EXISTS rooms (
+            id TEXT PRIMARY KEY,
+            room_code TEXT UNIQUE NOT NULL,
+            creator_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            question_id TEXT,
+            difficulty TEXT,
+            topic TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active BOOLEAN DEFAULT 1
+        )
+        ''')
+        
+        # Create room_members table without foreign key constraint
+        room_cursor.execute('''
+        CREATE TABLE IF NOT EXISTS room_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_creator BOOLEAN DEFAULT 0,
+            UNIQUE(room_id, user_id)
+        )
+        ''')
+        
+        # Create room_submissions table without foreign key constraint
+        room_cursor.execute('''
+        CREATE TABLE IF NOT EXISTS room_submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            room_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            code TEXT NOT NULL,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            passing_ratio REAL,
+            passed_tests INTEGER,
+            total_tests INTEGER
+        )
+        ''')
+        
+        room_conn.commit()
+        logger.info("Room database tables initialized successfully")
+        
+    except Exception as e:
+        if 'room_conn' in locals():
+            room_conn.rollback()
+            room_conn.close()
+        if 'auth_conn' in locals():
+            auth_conn.close()
+        logger.error(f"Error initializing room database: {str(e)}")
+        raise
+    finally:
+        if 'room_conn' in locals():
+            room_conn.close()
+        if 'auth_conn' in locals():
+            auth_conn.close()
 
 def generate_room_code(length=6):
     """Generate a unique room code"""
-    # Generate a random code
-    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
-    
-    # Check if code already exists
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    while True:
-        cursor.execute("SELECT id FROM rooms WHERE room_code = ?", (code,))
-        if not cursor.fetchone():
-            break
-        # Generate a new code if this one exists
-        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
-    
-    conn.close()
-    return code
-
-def create_room(creator_id: str, name: str, difficulty: str = None, topic: str = None) -> Dict[str, Any]:
-    """
-    Create a new coding room
-    
-    Args:
-        creator_id: User ID of the room creator
-        name: Room name
-        difficulty: Optional difficulty setting
-        topic: Optional topic setting
-        
-    Returns:
-        Room details including room_code
-    """
+    conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
         
-        # Generate a unique room ID and code
-        room_id = str(uuid.uuid4())
-        room_code = generate_room_code()
+        # Generate a random code
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
         
-        # Insert room record
-        cursor.execute(
-            "INSERT INTO rooms (id, room_code, creator_id, name, difficulty, topic) VALUES (?, ?, ?, ?, ?, ?)",
+        # Check if code already exists
+        while True:
+            cursor.execute("SELECT id FROM rooms WHERE room_code = ?", (code,))
+            if not cursor.fetchone():
+                break
+            # Generate a new code if this one exists
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+        
+        return code
+        
+    except Exception as e:
+        logger.error(f"Error generating room code: {str(e)}")
+        raise
+    finally:
+        if conn:
+            conn.close()
+
+def create_room(creator_id: str, name: str, difficulty: str = None, topic: str = None) -> Dict[str, Any]:
+    """Create a new room with improved database handling"""
+    room_conn = None
+    auth_conn = None
+    try:
+        logger.info(f"Starting room creation for user {creator_id}")
+        
+        # Initialize databases if they don't exist
+        try:
+            import auth
+            auth.init_db()
+            init_room_db()
+            logger.info("Ensured databases are initialized")
+        except Exception as e:
+            logger.warning(f"Database initialization warning: {str(e)}")
+        
+        # Connect to room database first
+        room_conn = get_db()
+        room_cursor = room_conn.cursor()
+        
+        # Check if the rooms table exists, create if not
+        room_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='rooms'")
+        if not room_cursor.fetchone():
+            logger.info("Creating rooms table as it doesn't exist")
+            init_room_db()
+        
+        # Connect to auth database
+        auth_db_path = os.path.join(os.getcwd(), 'database', 'users.db')
+        if not os.path.exists(auth_db_path):
+            logger.warning("Auth database not found, initializing it")
+            import auth
+            auth.init_db()
+            
+        auth_conn = sqlite3.connect(auth_db_path)
+        auth_conn.row_factory = sqlite3.Row
+        auth_cursor = auth_conn.cursor()
+        
+        # Verify users table exists
+        auth_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        if not auth_cursor.fetchone():
+            logger.warning("Users table not found, initializing auth database")
+            import auth
+            auth.init_db()
+            # Reconnect to get the updated schema
+            auth_conn.close()
+            auth_conn = sqlite3.connect(auth_db_path)
+            auth_conn.row_factory = sqlite3.Row
+            auth_cursor = auth_conn.cursor()
+        
+        # Verify user exists in auth database
+        logger.info("Verifying user in auth database")
+        auth_cursor.execute("SELECT id FROM users WHERE id = ?", (creator_id,))
+        user = auth_cursor.fetchone()
+        
+        if not user:
+            logger.error(f"User {creator_id} not found in auth database")
+            
+            # As a fallback, we'll still create the room but without username lookup
+            logger.info("Creating room anyway with default creator name")
+            creator_name = f"User-{creator_id[:8]}"
+        else:
+            # If we found the user, get their username
+            auth_cursor.execute("SELECT username FROM users WHERE id = ?", (creator_id,))
+            user_data = auth_cursor.fetchone()
+            creator_name = user_data['username'] if user_data else f"User-{creator_id[:8]}"
+            logger.info(f"User verified: {creator_name}")
+        
+        # Generate unique room code
+        logger.info("Generating room code")
+        room_code = generate_room_code()
+        logger.info(f"Generated room code: {room_code}")
+        
+        # Create room
+        room_id = str(uuid.uuid4())
+        logger.info(f"Creating room with ID: {room_id}")
+        
+        room_cursor.execute(
+            """
+            INSERT INTO rooms (id, room_code, creator_id, name, difficulty, topic)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
             (room_id, room_code, creator_id, name, difficulty, topic)
         )
         
-        # Add creator as a room member
-        cursor.execute(
-            "INSERT INTO room_members (room_id, user_id, is_creator) VALUES (?, ?, 1)",
+        # Add creator as first member with admin privileges
+        logger.info("Adding creator as room member")
+        room_cursor.execute(
+            """
+            INSERT INTO room_members (room_id, user_id, is_creator)
+            VALUES (?, ?, 1)
+            """,
             (room_id, creator_id)
         )
         
-        conn.commit()
+        room_conn.commit()
+        logger.info("Room created successfully")
         
-        # Retrieve the room details
-        cursor.execute(
-            "SELECT * FROM rooms WHERE id = ?",
-            (room_id,)
-        )
-        room = cursor.fetchone()
-        
-        conn.close()
-        
-        # Convert to dict for return
-        room_dict = {
-            'id': room['id'],
-            'room_code': room['room_code'],
-            'creator_id': room['creator_id'],
-            'name': room['name'],
-            'question_id': room['question_id'],
-            'difficulty': room['difficulty'],
-            'topic': room['topic'],
-            'created_at': room['created_at'],
-            'is_active': bool(room['is_active'])
+        # Return simplified room data without relying on JOIN with users table
+        return {
+            'id': room_id,
+            'room_code': room_code,
+            'creator_id': creator_id,
+            'creator_name': creator_name,
+            'name': name,
+            'difficulty': difficulty,
+            'topic': topic,
+            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'member_count': 1,
+            'is_active': True
         }
         
-        logger.info(f"Room created: {room_code} by user {creator_id}")
-        return room_dict
-        
+    except sqlite3.OperationalError as e:
+        logger.error(f"Database error creating room: {str(e)}")
+        if room_conn:
+            room_conn.rollback()
+        if auth_conn:
+            auth_conn.close()
+        raise ValueError(f"Database error: {str(e)}")
     except Exception as e:
-        if conn:
-            conn.rollback()
-            conn.close()
         logger.error(f"Error creating room: {str(e)}")
+        if room_conn:
+            room_conn.rollback()
+        if auth_conn:
+            auth_conn.close()
         raise
-
-
+    finally:
+        if room_conn:
+            room_conn.close()
+        if auth_conn:
+            auth_conn.close()
 
 def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
-    """
-    Join an existing room by room code
-    """
+    """Join an existing room"""
     conn = None
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
+        conn = get_db()
         cursor = conn.cursor()
         
         # Check if room exists and is active
@@ -188,8 +293,6 @@ def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
         room = cursor.fetchone()
         
         if not room:
-            if conn:
-                conn.close()
             raise ValueError(f"Room with code {room_code} not found or is inactive")
         
         # Check if user is already in the room
@@ -202,13 +305,12 @@ def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
         if not existing_member:
             # Add user to room members
             cursor.execute(
-                "INSERT INTO room_members (room_id, user_id) VALUES (?, ?)",
+                "INSERT INTO room_members (room_id, user_id, is_creator) VALUES (?, ?, 0)",
                 (room['id'], user_id)
             )
             conn.commit()
         
-        # Get room members with error handling
-        members = []
+        # Get room members with error handling for users table
         try:
             cursor.execute(
                 """
@@ -220,101 +322,66 @@ def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
                 """,
                 (room['id'],)
             )
-            members = cursor.fetchall()
         except sqlite3.OperationalError:
             # Fallback if users table issue
             cursor.execute(
                 """
                 SELECT user_id, is_creator, 'User' || substr(user_id, 1, 4) as username
-                FROM room_members 
+                FROM room_members
                 WHERE room_id = ?
                 ORDER BY is_creator DESC, joined_at ASC
                 """,
                 (room['id'],)
             )
-            members = cursor.fetchall()
+        members = cursor.fetchall()
         
-        # Convert members to list of dicts
-        members_list = []
-        for m in members:
-            members_list.append({
-                'username': m['username'],
-                'user_id': m['user_id'],
-                'is_creator': bool(m['is_creator'])
-            })
+      
         
-        # Get submissions with similar error handling
+        # Get any submissions if question is assigned
         submissions = []
         if room['question_id']:
-            try:
-                cursor.execute(
-                    """
-                    SELECT rs.user_id, 
-                           COALESCE((SELECT username FROM users WHERE id = rs.user_id), 'User' || substr(rs.user_id, 1, 4)) as username,
-                           rs.passing_ratio, rs.passed_tests, rs.total_tests, rs.submitted_at
-                    FROM room_submissions rs
-                    WHERE rs.room_id = ?
-                    ORDER BY rs.passing_ratio DESC, rs.submitted_at ASC
-                    """,
-                    (room['id'],)
-                )
-                submissions = cursor.fetchall()
-            except sqlite3.OperationalError:
-                # Fallback if users table issue
-                cursor.execute(
-                    """
-                    SELECT user_id, 'User' as username, passing_ratio, passed_tests, total_tests, submitted_at
-                    FROM room_submissions
-                    WHERE room_id = ?
-                    ORDER BY passing_ratio DESC, submitted_at ASC
-                    """,
-                    (room['id'],)
-                )
-                submissions = cursor.fetchall()
-        
-        # Get creator info with error handling
-        creator_name = "Unknown"
-        try:
             cursor.execute(
-                "SELECT username FROM users WHERE id = ?",
-                (room['creator_id'],)
+                """
+                SELECT rs.user_id, 
+                       COALESCE((SELECT username FROM users WHERE id = rs.user_id), 'User' || substr(rs.user_id, 1, 4)) as username,
+                       rs.passing_ratio, rs.passed_tests, rs.total_tests, rs.submitted_at
+                FROM room_submissions rs
+                WHERE rs.room_id = ?
+                ORDER BY rs.passing_ratio DESC, rs.submitted_at ASC
+                """,
+                (room['id'],)
             )
-            creator = cursor.fetchone()
-            if creator:
-                creator_name = creator['username']
-        except sqlite3.OperationalError:
-            # Fallback if users table issue
-            pass
+            submissions = cursor.fetchall()
         
-        # Convert submissions to list of dicts
-        submissions_list = []
-        for s in submissions:
-            submissions_list.append({
-                'user_id': s['user_id'],
-                'username': s['username'],
-                'passing_ratio': s['passing_ratio'],
-                'passed_tests': s['passed_tests'],
-                'total_tests': s['total_tests'],
-                'submitted_at': s['submitted_at']
-            })
-        
-        conn.close()
-        
-        # Format the response with all data
-        return {
+        # Convert to dict for return
+        room_dict = {
             'id': room['id'],
             'room_code': room['room_code'],
             'creator_id': room['creator_id'],
-            'creator_name': creator_name,
+            'creator_name': room['creator_name'],
             'name': room['name'],
             'question_id': room['question_id'],
             'difficulty': room['difficulty'],
             'topic': room['topic'],
             'created_at': room['created_at'],
             'is_active': bool(room['is_active']),
-            'members': members_list,
-            'submissions': submissions_list
+            'members': [{
+                'user_id': m['user_id'],
+                'username': m['username'],
+                'is_creator': bool(m['is_creator'])
+            } for m in members],
+            'submissions': [{
+                'user_id': s['user_id'],
+                'username': s['username'],
+                'passing_ratio': s['passing_ratio'],
+                'passed_tests': s['passed_tests'],
+                'total_tests': s['total_tests'],
+                'submitted_at': s['submitted_at']
+            } for s in submissions] if submissions else []
         }
+        
+        logger.info(f"User {user_id} joined room {room_code}")
+        return room_dict
         
     except Exception as e:
         if conn:
@@ -322,6 +389,9 @@ def join_room(room_code: str, user_id: str) -> Dict[str, Any]:
             conn.close()
         logger.error(f"Error joining room: {str(e)}")
         raise
+    finally:
+        if conn:
+            conn.close()
 
 def get_room_by_code(room_code: str) -> Optional[Dict[str, Any]]:
     """Get room details by room code"""

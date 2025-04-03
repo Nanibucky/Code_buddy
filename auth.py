@@ -72,49 +72,44 @@ def init_db():
     
     logger.info("Database initialized successfully")
 
+# In auth.py, modify get_db function:
 def get_db():
-    """Get a database connection"""
+    """Get database connection with proper error handling"""
     if 'db' not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
-    
+        try:
+            g.db = sqlite3.connect(DB_PATH)
+            g.db.row_factory = sqlite3.Row
+        except sqlite3.Error as e:
+            logger.error(f"Database connection error: {str(e)}")
+            raise
     return g.db
 
+# Make sure close_db is properly implemented:
 def close_db(e=None):
-    """Close the database connection"""
+    """Close database connection with proper error handling"""
     db = g.pop('db', None)
-    
     if db is not None:
-        db.close()
+        try:
+            db.close()
+        except sqlite3.Error as e:
+            logger.error(f"Error closing database connection: {str(e)}")
 
 class UserAuth:
     """User authentication and management class"""
     
     @staticmethod
     def validate_password(password: str) -> bool:
-        """
-        Validate that a password meets requirements:
-        - At least 8 characters
-        - Contains at least one digit
-        - Contains at least one uppercase letter
-        - Contains at least one lowercase letter
-        - Contains at least one special character
-        """
-        if len(password) < 8:
+        """Validate password strength with improved security checks"""
+        if not password or len(password) < 8:
             return False
-        
-        if not re.search(r'\d', password):  # At least one digit
+        if not re.search(r"[A-Z]", password):  # At least one uppercase letter
             return False
-            
-        if not re.search(r'[A-Z]', password):  # At least one uppercase
+        if not re.search(r"[a-z]", password):  # At least one lowercase letter
             return False
-            
-        if not re.search(r'[a-z]', password):  # At least one lowercase
+        if not re.search(r"\d", password):  # At least one number
             return False
-            
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):  # At least one special char
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):  # At least one special character
             return False
-            
         return True
     
     @staticmethod

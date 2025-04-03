@@ -505,7 +505,7 @@ def join_room():
 def room_detail(room_code):
     """Show room details and current question"""
     try:
-        # Try to get the room and gracefully handle failure
+        # Try to get the room
         room_data = room.get_room_by_code(room_code)
         
         if not room_data:
@@ -541,28 +541,43 @@ def room_detail(room_code):
             'points': 0
         }
         
-        # Get question data if assigned
+        # Get question data if assigned - THIS IS THE CRITICAL PART
         question_data = None
         if room_data.get('question_id'):
             question_id = room_data['question_id']
-            question_data = questions_db.get(question_id)
-            
-            if question_data:
-                question_info = question_data['question_info']
-                example_test_cases = [tc for tc in question_data['test_cases'] if tc.get('is_example', False)]
+            try:
+                # Get question from cache
+                cached_question = questions_db.get(question_id)
                 
-                question_data = {
-                    'id': question_id,
-                    'info': question_info,
-                    'example_test_cases': example_test_cases
-                }
+                if cached_question:
+                    # Only create question_data if we have valid cache data
+                    question_info = cached_question.get('question_info')
+                    test_cases = cached_question.get('test_cases', [])
+                    
+                    if question_info:  # Verify question_info exists
+                        example_test_cases = [tc for tc in test_cases if tc.get('is_example', False)]
+                        
+                        question_data = {
+                            'id': question_id,
+                            'info': question_info,
+                            'example_test_cases': example_test_cases
+                        }
+                    else:
+                        # Log the issue if question_info is missing
+                        logger.warning(f"Question {question_id} has no question_info")
+                else:
+                    # Log if the question isn't in the cache
+                    logger.warning(f"Question {question_id} not found in cache")
+            except Exception as e:
+                # Log any errors in this process
+                logger.error(f"Error retrieving question data: {str(e)}")
         
-        # Success! Render the template with the data
+        # Render the template with the data
         return render_template(
             'room_detail.html',
             room=room_data, 
             is_creator=is_creator,
-            question=question_data,
+            question=question_data,  # This will be None if we couldn't get valid data
             user_stats=user_stats
         )
         
@@ -676,7 +691,7 @@ def api_assign_question(room_id):
 
 @app.route('/api/room/<room_id>/submit-solution', methods=['POST'])
 @login_required
-def api_room_submit_solution(room_id):
+def api_room_submit_solution_v2(room_id):
     """Submit a solution within a room context"""
     try:
         data = request.get_json()
@@ -865,7 +880,83 @@ def api_room_status(room_code):
             'error': str(e)
         }), 500
 
-
+@app.route('/api/room/<room_id>/submit-solution', methods=['POST'])
+@login_required
+def api_room_submit_solution(room_id):
+    """Submit a solution within a room context"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
+        question_id = data.get('question_id')
+        code = data.get('code', '').strip()
+        
+        # Get the room to verify
+        room_data = None
+        for r in room.get_user_rooms(session.get('user_id')):
+            if r['id'] == room_id:
+                room_data = r
+                break
+                
+        if not room_data:
+            return jsonify({
+                'success': False,
+                'error': 'Room not found or you are not a member'
+            }), 404
+        
+        if not code:
+            return jsonify({'success': False, 'error': 'No code provided'}), 400
+            
+        if len(code) > 50000:  # 50KB limit
+            return jsonify({'success': False, 'error': 'Code submission too large'}), 400
+            
+        # Sanitize user code - prevent malicious imports
+        if any(pattern in code for pattern in [
+            "import os", "import subprocess", "import sys", 
+            "from os import", "from subprocess import", "from sys import",
+            "__import__('os')", "__import__('subprocess')", 
+            "eval(", "exec("
+        ]):
+            return jsonify({
+                'success': False,
+                'error': 'Code contains restricted imports or functions'
+            }), 403
+            
+        question_data = questions_db.get(question_id)
+        if not question_data:
+            return jsonify({
+                'success': False,
+                'error': 'Question not found or expired'
+            }), 404
+        
+        function_name = question_data['question_info']['function_name']
+        test_code = question_data['test_code']
+        
+        # Execute user code
+        results = execute_code_simplified(code, function_name, test_code)
+        
+        # Record the submission in the room
+        if results.get('success'):
+            user_id = session.get('user_id')
+            room.record_submission(room_id, user_id, code, results)
+            
+            # Update user stats if all tests passed
+            if results.get('passing_ratio') == 1:
+                update_user_stats_on_success()
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'room_id': room_id
+        })
+        
+    except Exception as e:
+        logger.exception("Error in room submit solution")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # This is a conceptual implementation of Pynguine
