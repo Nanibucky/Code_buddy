@@ -110,7 +110,7 @@
             align-items: center;
             justify-content: flex-end;
         }
-        
+
         .room-actions .btn {
             height: 48px;
             min-width: 140px;
@@ -643,14 +643,14 @@
         .animate-fade-in {
             animation: fadeIn 0.5s ease-out forwards;
         }
-        
+
         /* Improved animations for question generation flow */
         .hide-before-question {
             transition: all 0.4s ease-in-out;
             opacity: 0;
             transform: translateY(10px);
         }
-        
+
         .hide-before-question:not(.hidden) {
             opacity: 1;
             transform: translateY(0);
@@ -1088,13 +1088,17 @@
     <!-- Main JavaScript -->
     <script>
         // Global variables
-        let editor;
-        let currentQuestionId = null;
-        let loadedFunctionSignature = null;
-        let questionPollingInterval = null;
-        let editorInitialized = false;
-        let codingBuddyInstance = null;
-        let userCodeStorage = {};
+        window.editor = null;
+        window.currentQuestionId = null;
+        window.loadedFunctionSignature = null;
+        window.questionPollingInterval = null;
+        window.editorInitialized = false;
+        window.codingBuddyInstance = null;
+        window.userCodeStorage = {};
+        window.currentQuestion = null;
+
+        // Set creator status from data attribute
+        window.isCreator = document.body.getAttribute('data-is-creator') === 'true';
 
         // Initialize modals when document is ready
         document.addEventListener('DOMContentLoaded', function() {
@@ -1245,7 +1249,7 @@
                     document.getElementById('no-question-placeholder').classList.remove('hidden');
                     // Hide submit button when no question exists
                     document.getElementById('submit-container').classList.add('hidden');
-                    
+
                     // Hide any elements that should only show after question generation
                     const elementsToHide = document.querySelectorAll('.hide-before-question');
                     elementsToHide.forEach(el => {
@@ -1460,8 +1464,10 @@
         }
 
         // Generate a new question
-        async function generateQuestion() {
-            if (!{{ is_creator|tojson }}) {
+        window.generateQuestion = async function() {
+            // Check if user is creator (using a global variable set at the top of the script)
+            if (!window.isCreator) {
+                console.log('User is not the creator, cannot generate question');
                 return;
             }
 
@@ -1475,7 +1481,7 @@
             document.getElementById('editor-container').classList.add('hidden');
             document.getElementById('submit-container').classList.add('hidden');
             document.getElementById('results-container')?.classList.add('hidden');
-            
+
             // Clear any elements that might be below the generate button
             const elementsToHide = document.querySelectorAll('.hide-before-question');
             elementsToHide.forEach(el => {
@@ -1959,6 +1965,15 @@
             }
         }
 
+        // Initialize socket.io connection globally
+        let socket = io({
+            reconnectionAttempts: 5,
+            timeout: 10000
+        });
+
+        // Define roomCode globally for socket events
+        const roomCode = "{{ room.room_code }}";
+
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             initializeEditor();
@@ -1977,16 +1992,11 @@
             });
 
             // Initialize screen sharing
-            // Initialize socket.io connection
-            const socket = io({
-                reconnectionAttempts: 5,
-                timeout: 10000
-            });
 
             // Initialize screen sharing once socket is connected
             socket.on('connect', function() {
                 console.log('Socket.IO connected');
-                
+
                 // Initialize screen sharing
                 const screenSharing = new ScreenSharing({
                     roomCode: "{{ room.room_code }}",
@@ -2004,7 +2014,7 @@
                         showNotification(`${data.username || 'Someone'} stopped sharing their screen`);
                     }
                 });
-                
+
                 // Add to global scope for debugging
                 window.screenSharing = screenSharing;
             });
@@ -2017,11 +2027,11 @@
                     <i class="fas fa-info-circle me-2"></i>${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 `;
-                
+
                 // Add to DOM
                 const container = document.querySelector('.container');
                 container.insertBefore(notification, container.firstChild);
-                
+
                 // Auto-dismiss after 5 seconds
                 setTimeout(() => {
                     notification.classList.remove('show');
@@ -2116,8 +2126,372 @@
             socket.emit('get_room_members', { room: roomCode });
         });
     </script>
-    
+
     <!-- Include the screen-share.js script -->
     <script src="{{ url_for('static', filename='js/screen-share.js') }}"></script>
+
+    <!-- Screen Sharing Debug & Fix -->
+    <script>
+        // Immediately add click handlers to buttons
+        (function() {
+            // Fix generate button
+            const generateBtn = document.getElementById('generate-btn');
+            if (generateBtn) {
+                console.log('Generate button found, adding direct handler');
+                generateBtn.onclick = function() {
+                    console.log('Generate button clicked via direct handler');
+                    if (typeof generateQuestion === 'function') {
+                        generateQuestion();
+                    } else {
+                        console.error('generateQuestion function not found');
+                        alert('Error: Could not generate question. Please refresh the page and try again.');
+                    }
+                };
+            }
+
+            // Fix coding buddy toggle
+            const buddyToggle = document.getElementById('coding-buddy-toggle');
+            const buddyContainer = document.getElementById('coding-buddy-container');
+            const buddyClose = document.getElementById('buddy-close');
+            const buddyMinimize = document.getElementById('buddy-minimize');
+            const buddySend = document.getElementById('buddy-send');
+            const buddyInput = document.getElementById('buddy-message-input');
+
+            if (buddyToggle && buddyContainer) {
+                console.log('Coding buddy elements found, adding direct handlers');
+
+                // Toggle chat window
+                buddyToggle.onclick = function() {
+                    console.log('Buddy toggle clicked');
+                    buddyContainer.classList.toggle('open');
+                    if (buddyContainer.classList.contains('open') && buddyInput) {
+                        setTimeout(() => buddyInput.focus(), 300);
+                    }
+                };
+
+                // Close/minimize buttons
+                if (buddyClose) {
+                    buddyClose.onclick = function() {
+                        buddyContainer.classList.remove('open');
+                    };
+                }
+
+                if (buddyMinimize) {
+                    buddyMinimize.onclick = function() {
+                        buddyContainer.classList.remove('open');
+                    };
+                }
+
+                // Send message functionality
+                if (buddySend && buddyInput) {
+                    const sendMessage = function() {
+                        const message = buddyInput.value.trim();
+                        if (message) {
+                            console.log('Sending message to coding buddy:', message);
+
+                            // Add user message to chat
+                            const msgElem = document.createElement('div');
+                            msgElem.className = 'coding-buddy-message user-message';
+                            msgElem.innerHTML = message.replace(/\n/g, '<br>');
+                            document.getElementById('buddy-messages').appendChild(msgElem);
+
+                            // Clear input
+                            buddyInput.value = '';
+
+                            // Scroll to bottom
+                            const messagesContainer = document.getElementById('buddy-messages');
+                            if (messagesContainer) {
+                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }
+
+                            // Show typing indicator
+                            const typingIndicator = document.createElement('div');
+                            typingIndicator.className = 'buddy-typing';
+                            for (let i = 0; i < 3; i++) {
+                                const dot = document.createElement('div');
+                                dot.className = 'typing-dot';
+                                typingIndicator.appendChild(dot);
+                            }
+                            document.getElementById('buddy-messages').appendChild(typingIndicator);
+
+                            // Call API
+                            fetch('/api/chat-completion', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    user_message: message,
+                                    question_info: window.currentQuestion || null,
+                                    code_solution: window.editor ? window.editor.getValue() : null,
+                                    test_results: null
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                // Remove typing indicator
+                                const typingIndicator = document.querySelector('.buddy-typing');
+                                if (typingIndicator) typingIndicator.remove();
+
+                                if (data.success) {
+                                    // Add buddy message
+                                    const msgElem = document.createElement('div');
+                                    msgElem.className = 'coding-buddy-message buddy-message';
+
+                                    let formattedMessage = data.message
+                                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                        .replace(/`([^`]+)`/g, '<code>$1</code>')
+                                        .replace(/\n/g, '<br>');
+
+                                    msgElem.innerHTML = formattedMessage;
+                                    document.getElementById('buddy-messages').appendChild(msgElem);
+                                } else {
+                                    // Add error message
+                                    const msgElem = document.createElement('div');
+                                    msgElem.className = 'coding-buddy-message buddy-message';
+                                    msgElem.innerHTML = "I'm having trouble connecting. Could you try again later? 🔄";
+                                    document.getElementById('buddy-messages').appendChild(msgElem);
+                                }
+
+                                // Scroll to bottom
+                                const messagesContainer = document.getElementById('buddy-messages');
+                                if (messagesContainer) {
+                                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error calling chat API:', error);
+
+                                // Remove typing indicator
+                                const typingIndicator = document.querySelector('.buddy-typing');
+                                if (typingIndicator) typingIndicator.remove();
+
+                                // Add error message
+                                const msgElem = document.createElement('div');
+                                msgElem.className = 'coding-buddy-message buddy-message';
+                                msgElem.innerHTML = "I'm having trouble connecting. Could you try again later? 🔄";
+                                document.getElementById('buddy-messages').appendChild(msgElem);
+
+                                // Scroll to bottom
+                                const messagesContainer = document.getElementById('buddy-messages');
+                                if (messagesContainer) {
+                                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                                }
+                            });
+                        }
+                    };
+
+                    buddySend.onclick = sendMessage;
+
+                    buddyInput.onkeypress = function(e) {
+                        if (e.key === 'Enter') {
+                            sendMessage();
+                        }
+                    };
+                }
+            }
+        })();
+
+        // Immediately add a click handler to the share button
+        (function() {
+            const shareBtn = document.getElementById('shareScreenBtn');
+            const localVideo = document.getElementById('localScreenVideo');
+            const videosContainer = document.getElementById('videosContainer');
+
+            let isSharing = false;
+            let localStream = null;
+
+            if (shareBtn && localVideo && videosContainer) {
+                shareBtn.onclick = async function() {
+                    console.log('Share button clicked via direct handler');
+
+                    try {
+                        if (isSharing) {
+                            // Stop sharing
+                            console.log('Stopping screen share');
+                            if (localStream) {
+                                localStream.getTracks().forEach(track => track.stop());
+                                localStream = null;
+                            }
+                            localVideo.srcObject = null;
+                            localVideo.style.display = 'none';
+                            videosContainer.style.display = 'none';
+                            shareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
+                            shareBtn.classList.remove('btn-danger');
+                            shareBtn.classList.add('btn-outline-secondary');
+                            isSharing = false;
+                        } else {
+                            // Start sharing
+                            console.log('Starting screen share');
+                            const stream = await navigator.mediaDevices.getDisplayMedia({
+                                video: {
+                                    cursor: 'always',
+                                    displaySurface: 'monitor',
+                                    frameRate: { ideal: 30, max: 60 }
+                                },
+                                audio: false
+                            });
+
+                            localStream = stream;
+                            localVideo.srcObject = stream;
+                            localVideo.style.display = 'block';
+                            videosContainer.style.display = 'block';
+
+                            shareBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Stop Sharing';
+                            shareBtn.classList.add('btn-danger');
+                            shareBtn.classList.remove('btn-outline-secondary');
+                            isSharing = true;
+
+                            // Handle stream end event (user clicks "Stop sharing" in browser UI)
+                            stream.getVideoTracks()[0].addEventListener('ended', () => {
+                                console.log('User ended screen share via browser UI');
+                                if (isSharing) {
+                                    shareBtn.click(); // Simulate clicking the stop button
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Screen sharing error:', error);
+
+                        if (error.name === 'NotAllowedError') {
+                            alert('Screen sharing permission denied. Please allow screen sharing and try again.');
+                        } else {
+                            alert('Failed to start screen sharing: ' + (error.message || 'Unknown error'));
+                        }
+
+                        // Reset button state
+                        shareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
+                        shareBtn.classList.remove('btn-danger');
+                        shareBtn.classList.add('btn-outline-secondary');
+                        isSharing = false;
+                    }
+                };
+            }
+        })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded - initializing screen sharing fixes');
+
+            // Debug Socket.IO connection
+            if (typeof socket !== 'undefined') {
+                console.log('Socket status:', socket.connected ? 'Connected' : 'Not connected');
+            } else {
+                console.error('Socket not initialized');
+            }
+
+            // Fix for screen sharing button
+            const shareBtn = document.getElementById('shareScreenBtn');
+            const localVideo = document.getElementById('localScreenVideo');
+            const videosContainer = document.getElementById('videosContainer');
+
+            let isSharing = false;
+            let localStream = null;
+
+            if (shareBtn && localVideo && videosContainer) {
+                console.log('Screen sharing elements found');
+
+                // Remove any existing event listeners by cloning and replacing the button
+                const newShareBtn = shareBtn.cloneNode(true);
+                shareBtn.parentNode.replaceChild(newShareBtn, shareBtn);
+
+                // Add our new event listener
+                newShareBtn.addEventListener('click', async function() {
+                    console.log('Share button clicked');
+
+                    try {
+                        // First try to use the existing ScreenSharing class if available
+                        if (window.screenSharing && typeof window.screenSharing.startScreenShare === 'function' && !isSharing) {
+                            console.log('Using ScreenSharing class');
+                            if (window.screenSharing.isSharing) {
+                                window.screenSharing.stopScreenShare();
+                            } else {
+                                window.screenSharing.startScreenShare();
+                            }
+                            return;
+                        }
+
+                        // Fallback to direct implementation
+                        if (isSharing) {
+                            // Stop sharing
+                            console.log('Stopping screen share');
+                            if (localStream) {
+                                localStream.getTracks().forEach(track => track.stop());
+                                localStream = null;
+                            }
+                            localVideo.srcObject = null;
+                            localVideo.style.display = 'none';
+                            videosContainer.style.display = 'none';
+                            newShareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
+                            newShareBtn.classList.remove('btn-danger');
+                            newShareBtn.classList.add('btn-outline-secondary');
+                            isSharing = false;
+
+                            // Notify other users if socket is available
+                            if (typeof socket !== 'undefined' && socket.connected) {
+                                socket.emit('screen_share_stopped', {
+                                    room: "{{ room.room_code }}",
+                                    username: "{{ session.get('username', 'User') }}"
+                                });
+                            }
+                        } else {
+                            // Start sharing
+                            console.log('Starting screen share');
+                            const stream = await navigator.mediaDevices.getDisplayMedia({
+                                video: {
+                                    cursor: 'always',
+                                    displaySurface: 'monitor',
+                                    frameRate: { ideal: 30, max: 60 }
+                                },
+                                audio: false
+                            });
+
+                            localStream = stream;
+                            localVideo.srcObject = stream;
+                            localVideo.style.display = 'block';
+                            videosContainer.style.display = 'block';
+
+                            newShareBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Stop Sharing';
+                            newShareBtn.classList.add('btn-danger');
+                            newShareBtn.classList.remove('btn-outline-secondary');
+                            isSharing = true;
+
+                            // Handle stream end event (user clicks "Stop sharing" in browser UI)
+                            stream.getVideoTracks()[0].addEventListener('ended', () => {
+                                console.log('User ended screen share via browser UI');
+                                if (isSharing) {
+                                    newShareBtn.click(); // Simulate clicking the stop button
+                                }
+                            });
+
+                            // Notify other users if socket is available
+                            if (typeof socket !== 'undefined' && socket.connected) {
+                                socket.emit('screen_share_started', {
+                                    room: "{{ room.room_code }}",
+                                    username: "{{ session.get('username', 'User') }}"
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Screen sharing error:', error);
+
+                        if (error.name === 'NotAllowedError') {
+                            alert('Screen sharing permission denied. Please allow screen sharing and try again.');
+                        } else {
+                            alert('Failed to start screen sharing: ' + (error.message || 'Unknown error'));
+                        }
+
+                        // Reset button state
+                        newShareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
+                        newShareBtn.classList.remove('btn-danger');
+                        newShareBtn.classList.add('btn-outline-secondary');
+                        isSharing = false;
+                    }
+                });
+            } else {
+                console.error('Screen sharing elements not found in DOM');
+            }
+        });
+    </script>
 </body>
 </html>
