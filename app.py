@@ -54,7 +54,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
 # For proper IP handling behind proxies
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-# Initialize SocketIO after app but before routes
 socketio.init_app(app, cors_allowed_origins="*")
 
 # Initialize OpenAI client
@@ -727,6 +726,81 @@ def api_get_room_code(room_id, question_id):
         
     except Exception as e:
         logger.exception("Error getting room code draft")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    
+
+@app.route('/api/room/<room_id>/members', methods=['GET'])
+@login_required
+def api_get_room_members(room_id):
+    """Get the list of members in a room"""
+    try:
+        # Verify user is a member of the room
+        user_id = session.get('user_id')
+        user_rooms = room.get_user_rooms(user_id)
+        
+        if not any(r['id'] == room_id for r in user_rooms):
+            return jsonify({
+                'success': False,
+                'error': 'Room not found or you are not a member'
+            }), 404
+        
+        # Get the room data including members
+        room_data = None
+        for r in user_rooms:
+            if r['id'] == room_id:
+                room_conn = room.get_db()
+                room_cursor = room_conn.cursor()
+                
+                cursor.execute(
+                    """
+                    SELECT r.*, 
+                          (SELECT COUNT(*) FROM room_members WHERE room_id = r.id) as member_count
+                    FROM rooms r
+                    WHERE r.id = ?
+                    """,
+                    (room_id,)
+                )
+                room_data = cursor.fetchone()
+                
+                if room_data:
+                    # Get members
+                    cursor.execute(
+                        """
+                        SELECT m.user_id, m.is_creator,
+                               (SELECT username FROM users WHERE id = m.user_id) as username
+                        FROM room_members m
+                        WHERE m.room_id = ?
+                        ORDER BY m.is_creator DESC, m.joined_at ASC
+                        """,
+                        (room_id,)
+                    )
+                    members = cursor.fetchall()
+                    
+                    room_data['members'] = [{
+                        'user_id': m['user_id'],
+                        'username': m['username'] or f"User-{m['user_id'][:8]}",
+                        'is_creator': bool(m['is_creator'])
+                    } for m in members]
+                
+                room_conn.close()
+                break
+        
+        if not room_data:
+            return jsonify({
+                'success': False,
+                'error': 'Room not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'members': room_data.get('members', [])
+        })
+        
+    except Exception as e:
+        logger.exception("Error getting room members")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -2371,6 +2445,7 @@ def validate_request():
                 'success': False,
                 'error': 'Request too large'
             }), 413
+        
 
 if __name__ == '__main__':
     try:

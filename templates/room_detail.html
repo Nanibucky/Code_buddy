@@ -17,6 +17,9 @@
     <!-- jQuery and Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Add this in the head section -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/screen-share.css') }}">
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/coding-buddy.css') }}">
@@ -831,7 +834,7 @@
             <div class="room-actions">
                 <!-- Screen Sharing Button -->
                 <button id="shareScreenBtn" class="btn btn-outline-secondary">
-                  <i class="fas fa-desktop me-2"></i>Share Screen
+                    <i class="fas fa-desktop me-2"></i>Share Screen
                 </button>
                 <!-- Room Members Button -->
                 <button id="membersBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#membersModal">
@@ -1011,6 +1014,7 @@
                     </div>
                 </div>
             </div>
+        </div>
 
         <!-- Results Container -->
         <div id="results-container" class="hidden mt-3 hide-before-question">
@@ -1038,12 +1042,45 @@
                 </div>
             </div>
         </div>
-
-        <!-- We've moved the sidebar content to modals for a cleaner interface -->
-        </div>
     </div>
 
-
+    <!-- Coding Buddy Chat Interface -->
+    <div id="coding-buddy-container" class="coding-buddy-container">
+        <div class="coding-buddy-header">
+            <h5><i class="fas fa-robot me-2"></i>Coding Buddy</h5>
+            <div class="coding-buddy-controls">
+                <button id="buddy-minimize" class="buddy-control-btn">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="buddy-close" class="buddy-control-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="coding-buddy-body">
+            <div id="buddy-messages" class="coding-buddy-messages">
+                <!-- Messages will appear here -->
+                <div class="coding-buddy-message buddy-message">
+                    <p>Hi there! I'm your Coding Buddy. I can help you with:</p>
+                    <ul>
+                        <li>Understanding the problem</li>
+                        <li>Debugging your code</li>
+                        <li>Providing hints and tips</li>
+                    </ul>
+                    <p>What would you like help with today?</p>
+                </div>
+            </div>
+        </div>
+        <div class="coding-buddy-input">
+            <input type="text" id="buddy-message-input" placeholder="Ask about your code or the problem...">
+            <button id="buddy-send" class="pulse-animation">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+    <button id="coding-buddy-toggle" class="coding-buddy-toggle pulse-animation">
+        <i class="fas fa-comment-dots"></i>
+    </button>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
@@ -1940,289 +1977,57 @@
             });
 
             // Initialize screen sharing
-            const shareBtn = document.getElementById('shareScreenBtn');
-            const localVideo = document.getElementById('localScreenVideo');
-
-            if (!shareBtn || !localVideo) {
-                console.error('Screen sharing elements not found');
-                return;
-            }
-
+            // Initialize socket.io connection
             const socket = io({
                 reconnectionAttempts: 5,
                 timeout: 10000
             });
 
-            const roomCode = "{{ room.room_code }}";
-            let localStream = null;
-            let peerConnections = {};
-
-            socket.on('connect', () => {
-                console.log('Socket.IO connected with ID:', socket.id);
-                socket.emit('join_screen_room', { room: roomCode });
-                shareBtn.classList.remove('btn-danger');
-                shareBtn.classList.add('btn-outline-secondary');
-                shareBtn.disabled = false;
-                if (localStream) {
-                    shareBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Stop Sharing';
-                }
-            });
-
-            socket.on('connect_error', (error) => {
-                console.error('Socket.IO connection error:', error);
-                alert('Connection error: Unable to establish real-time communication. Please refresh the page.');
-                shareBtn.classList.add('btn-danger');
-                shareBtn.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Connection Error';
-            });
-
-            shareBtn.addEventListener('click', function() {
-                if (localStream) {
-                    stopScreenShare();
-                } else {
-                    startScreenShare();
-                }
-            });
-
-            async function startScreenShare() {
-                try {
-                    const stream = await navigator.mediaDevices.getDisplayMedia({
-                        video: {
-                            cursor: 'always',
-                            displaySurface: 'monitor',
-                            logicalSurface: true,
-                            frameRate: { ideal: 30, max: 60 }
-                        },
-                        audio: false
-                    });
-
-                    localStream = stream;
-                    localVideo.style.display = 'block';
-
-                    shareBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Stop Sharing';
-                    shareBtn.classList.add('btn-danger');
-                    shareBtn.classList.remove('btn-outline-secondary');
-
-                    stream.getVideoTracks()[0].addEventListener('ended', () => {
-                        console.log('User ended screen share through browser UI');
-                        stopScreenShare();
-                    });
-
-
-                    const localVideo = document.getElementById('localScreenVideo');
-                    localVideo.style.display = 'block';
-
-
-
-                    socket.emit('screen_share_started', { room: roomCode });
-
-                    for (const member of {{ room.members|tojson }}) {
-                        if (member.user_id !== "{{ session.get('user_id', 'unknown') }}") {
-                            createPeerConnection(member.user_id, stream);
-                        }
+            // Initialize screen sharing once socket is connected
+            socket.on('connect', function() {
+                console.log('Socket.IO connected');
+                
+                // Initialize screen sharing
+                const screenSharing = new ScreenSharing({
+                    roomCode: "{{ room.room_code }}",
+                    userId: "{{ session.get('user_id', 'unknown') }}",
+                    username: "{{ session.get('username', 'User') }}",
+                    socket: socket,
+                    onUserStartSharing: function(data) {
+                        console.log(`${data.username || 'Someone'} started sharing their screen`);
+                        // Show notification or update UI
+                        showNotification(`${data.username || 'Someone'} is sharing their screen`);
+                    },
+                    onUserStopSharing: function(data) {
+                        console.log(`${data.username || 'Someone'} stopped sharing their screen`);
+                        // Show notification or update UI
+                        showNotification(`${data.username || 'Someone'} stopped sharing their screen`);
                     }
-
-                } catch (error) {
-                    console.error('Screen share error:', error);
-                    if (error.name === 'NotAllowedError') {
-                        alert('Screen sharing permission denied. Please allow screen sharing and try again.');
-                    } else {
-                        alert('Could not start screen sharing: ' + error.message);
-                    }
-
-                    shareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
-                    shareBtn.classList.remove('btn-danger');
-                    shareBtn.classList.add('btn-outline-secondary');
-                }
-            }
-
-            function stopScreenShare() {
-                if (localStream) {
-                    localStream.getTracks().forEach(track => track.stop());
-
-                    const remoteVideos = document.querySelectorAll('.remoteVideo');
-                    remoteVideos.forEach(video => {
-                        video.remove();
-                    });
-
-                    localVideo.srcObject = null;
-                    localStream = null;
-
-                    Object.values(peerConnections).forEach(pc => {
-                        if (pc) pc.close();
-                    });
-                    peerConnections = {};
-
-                    shareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
-                    shareBtn.classList.remove('btn-danger');
-                    shareBtn.classList.add('btn-outline-secondary');
-
-                    socket.emit('screen_share_stopped', { room: roomCode });
-                }
-            }
-
-            function createPeerConnection(userId, stream) {
-                const peerConnection = new RTCPeerConnection({
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:stun3.l.google.com:19302' },
-                        { urls: 'stun:stun4.l.google.com:19302' }
-                    ],
-                    iceCandidatePoolSize: 10
                 });
+                
+                // Add to global scope for debugging
+                window.screenSharing = screenSharing;
+            });
 
-                peerConnections[userId] = peerConnection;
-
-                stream.getTracks().forEach(track => {
-                    peerConnection.addTrack(track, stream);
-                });
-
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        console.log('Sending ICE candidate to', userId);
-                        socket.emit('ice-candidate', {
-                            candidate: event.candidate,
-                            room: roomCode,
-                            from: "{{ session.get('user_id', 'unknown') }}",
-                            to: userId
-                        });
-                    }
-                };
-
-                peerConnection.oniceconnectionstatechange = () => {
-                    console.log(`ICE connection state with ${userId}:`, peerConnection.iceConnectionState);
-                };
-
-                peerConnection.createOffer()
-                    .then(offer => peerConnection.setLocalDescription(offer))
-                    .then(() => {
-                        console.log('Sending offer to', userId);
-                        socket.emit('screen-share-offer', {
-                            offer: peerConnection.localDescription,
-                            room: roomCode,
-                            from: "{{ session.get('user_id', 'unknown') }}",
-                            to: userId
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error creating offer:', error);
-                    });
-
-                return peerConnection;
+            // Helper function to show notifications
+            function showNotification(message) {
+                const notification = document.createElement('div');
+                notification.className = 'alert alert-info alert-dismissible fade show';
+                notification.innerHTML = `
+                    <i class="fas fa-info-circle me-2"></i>${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                // Add to DOM
+                const container = document.querySelector('.container');
+                container.insertBefore(notification, container.firstChild);
+                
+                // Auto-dismiss after 5 seconds
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 300);
+                }, 5000);
             }
-
-            socket.on('screen-share-offer', async (data) => {
-                try {
-                    if (data.to === "{{ session.get('user_id', 'unknown') }}") {
-                        console.log('Received offer from', data.from);
-
-                        const peerConnection = new RTCPeerConnection({
-                            iceServers: [
-                                { urls: 'stun:stun.l.google.com:19302' },
-                                { urls: 'stun:stun1.l.google.com:19302' },
-                                { urls: 'stun:stun2.l.google.com:19302' },
-                                { urls: 'stun:stun3.l.google.com:19302' },
-                                { urls: 'stun:stun4.l.google.com:19302' }
-                            ],
-                            iceCandidatePoolSize: 10
-                        });
-
-                        peerConnections[data.from] = peerConnection;
-
-                        peerConnection.ontrack = (event) => {
-                            console.log('Received remote track');
-                            const video = document.getElementById('localScreenVideo');
-                            if (!localStream || video.srcObject !== event.streams[0]){
-                                //video.srcObject = event.streams[0];
-                                //video.style.display = 'block';
-                                const remoteVideo = document.createElement('video');
-                                remoteVideo.classList.add('remoteVideo');
-                                remoteVideo.autoplay = true;
-                                remoteVideo.playsInline = true;
-                                remoteVideo.srcObject = event.streams[0];
-
-                                // Add video to DOM
-                                const videosContainer = document.getElementById('videosContainer');
-                                videosContainer.appendChild(remoteVideo);
-
-                                // Display the container
-                                videosContainer.style.display = 'block';
-
-
-                            }
-
-                        };
-
-                        peerConnection.onicecandidate = (event) => {
-                            if (event.candidate) {
-                                socket.emit('ice-candidate', {
-                                    candidate: event.candidate,
-                                    room: roomCode,
-                                    from: "{{ session.get('user_id', 'unknown') }}",
-                                    to: data.from
-                                });
-                            }
-                        };
-
-                        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-                        const answer = await peerConnection.createAnswer();
-                        await peerConnection.setLocalDescription(answer);
-
-                        socket.emit('screen-share-answer', {
-                            answer: peerConnection.localDescription,
-                            room: roomCode,
-                            from: "{{ session.get('user_id', 'unknown') }}",
-                            to: data.from
-                        });
-                    }
-                } catch (error) {
-                    console.error('Error handling offer:', error);
-                }
-            });
-
-            socket.on('screen-share-answer', async (data) => {
-                try {
-                    if (data.to === "{{ session.get('user_id', 'unknown') }}") {
-                        console.log('Received answer from', data.from);
-                        const peerConnection = peerConnections[data.from];
-
-                        if (peerConnection) {
-                            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error handling answer:', error);
-                }
-            });
-
-            socket.on('ice-candidate', async (data) => {
-                try {
-                    if (data.to === "{{ session.get('user_id', 'unknown') }}") {
-                        console.log('Received ICE candidate from', data.from);
-                        const peerConnection = peerConnections[data.from];
-
-                        if (peerConnection) {
-                            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error handling ICE candidate:', error);
-                }
-            });
-
-            socket.on('screen_user_joined', (data) => {
-                console.log('User joined:', data.user);
-
-                if (localStream) {
-                    createPeerConnection(data.user, localStream);
-                }
-            });
-
-            window.addEventListener('beforeunload', function() {
-                stopScreenShare();
-                socket.emit('leave_screen_room', { room: roomCode });
-            });
         });
 
         // Auto-save code periodically
@@ -2311,42 +2116,8 @@
             socket.emit('get_room_members', { room: roomCode });
         });
     </script>
-    <!-- Coding Buddy Chat Interface -->
-    <div id="coding-buddy-container" class="coding-buddy-container">
-        <div class="coding-buddy-header">
-            <h5><i class="fas fa-robot me-2"></i>Coding Buddy</h5>
-            <div class="coding-buddy-controls">
-                <button id="buddy-minimize" class="buddy-control-btn">
-                    <i class="fas fa-minus"></i>
-                </button>
-                <button id="buddy-close" class="buddy-control-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-        <div class="coding-buddy-body">
-            <div id="buddy-messages" class="coding-buddy-messages">
-                <!-- Messages will appear here -->
-                <div class="coding-buddy-message buddy-message">
-                    <p>Hi there! I'm your Coding Buddy. I can help you with:</p>
-                    <ul>
-                        <li>Understanding the problem</li>
-                        <li>Debugging your code</li>
-                        <li>Providing hints and tips</li>
-                    </ul>
-                    <p>What would you like help with today?</p>
-                </div>
-            </div>
-        </div>
-        <div class="coding-buddy-input">
-            <input type="text" id="buddy-message-input" placeholder="Ask about your code or the problem...">
-            <button id="buddy-send" class="pulse-animation">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-    </div>
-    <button id="coding-buddy-toggle" class="coding-buddy-toggle pulse-animation">
-        <i class="fas fa-comment-dots"></i>
-    </button>
+    
+    <!-- Include the screen-share.js script -->
+    <script src="{{ url_for('static', filename='js/screen-share.js') }}"></script>
 </body>
 </html>

@@ -1,39 +1,44 @@
-// static/js/screen-share.js
-
-class ScreenShare {
+/**
+ * Screen Sharing Module for CodeChallenge Rooms
+ * Handles all WebRTC and screen sharing functionality
+ */
+class ScreenSharing {
     constructor(options) {
+        // Required options
         this.roomCode = options.roomCode;
         this.userId = options.userId;
         this.username = options.username;
         this.socket = options.socket;
+        
+        // Optional callbacks
         this.onUserStartSharing = options.onUserStartSharing || function() {};
         this.onUserStopSharing = options.onUserStopSharing || function() {};
-
+        
         // UI Elements
         this.shareBtn = document.getElementById(options.shareBtnId || 'shareScreenBtn');
         this.videosContainer = document.getElementById(options.videosContainerId || 'videosContainer');
         this.localVideoElem = document.getElementById(options.localVideoId || 'localScreenVideo');
-
+        
         // State
         this.localStream = null;
         this.peerConnections = {};
         this.isSharing = false;
         this.remoteStreams = {};
-
+        
         // Initialize
         this.init();
     }
-
+    
     init() {
         // Check if required elements exist
         if (!this.shareBtn || !this.videosContainer || !this.localVideoElem) {
             console.error('Screen sharing elements not found');
             return;
         }
-
+        
         // Hide videos container initially
         this.videosContainer.style.display = 'none';
-
+        
         // Add event listener to share button
         this.shareBtn.addEventListener('click', () => {
             if (this.isSharing) {
@@ -42,20 +47,20 @@ class ScreenShare {
                 this.startScreenShare();
             }
         });
-
+        
         // Join the screen sharing room
         this.socket.emit('join_screen_room', { room: this.roomCode });
-
+        
         // Set up socket event listeners
         this.setupSocketListeners();
-
+        
         // Clean up on page unload
         window.addEventListener('beforeunload', () => {
             this.stopScreenShare();
             this.socket.emit('leave_screen_room', { room: this.roomCode });
         });
     }
-
+    
     setupSocketListeners() {
         // When a peer sends an offer
         this.socket.on('screen_share_offer', async (data) => {
@@ -64,7 +69,7 @@ class ScreenShare {
                 await this.handleOffer(data);
             }
         });
-
+        
         // When a peer sends an answer to our offer
         this.socket.on('screen_share_answer', async (data) => {
             if (data.to === this.userId) {
@@ -72,7 +77,7 @@ class ScreenShare {
                 await this.handleAnswer(data);
             }
         });
-
+        
         // When a peer sends an ICE candidate
         this.socket.on('ice_candidate', async (data) => {
             if (data.to === this.userId) {
@@ -80,7 +85,7 @@ class ScreenShare {
                 await this.handleIceCandidate(data);
             }
         });
-
+        
         // When a new user joins the room
         this.socket.on('screen_user_joined', (data) => {
             console.log('User joined screen room:', data.user);
@@ -90,7 +95,7 @@ class ScreenShare {
                 this.createPeerConnection(data.user);
             }
         });
-
+        
         // When a user starts sharing their screen
         this.socket.on('screen_share_started', (data) => {
             console.log('User started sharing:', data.user);
@@ -100,7 +105,7 @@ class ScreenShare {
                 this.onUserStartSharing(data);
             }
         });
-
+        
         // When a user stops sharing their screen
         this.socket.on('screen_share_stopped', (data) => {
             console.log('User stopped sharing:', data.user);
@@ -114,7 +119,7 @@ class ScreenShare {
             this.removeRemoteVideo(data.user);
         });
     }
-
+    
     async startScreenShare() {
         try {
             // Get screen capture stream
@@ -173,7 +178,7 @@ class ScreenShare {
             this.resetShareButton();
         }
     }
-
+    
     stopScreenShare() {
         if (this.localStream) {
             // Stop all tracks
@@ -213,7 +218,7 @@ class ScreenShare {
         this.shareBtn.classList.remove('btn-danger');
         this.shareBtn.classList.add('btn-outline-secondary');
     }
-
+    
     createPeerConnection(peerId) {
         if (this.peerConnections[peerId]) {
             // Close existing connection
@@ -277,7 +282,7 @@ class ScreenShare {
             
         return peerConnection;
     }
-
+    
     async handleOffer(data) {
         try {
             // Create a new peer connection
@@ -329,7 +334,7 @@ class ScreenShare {
             console.error('Error handling offer:', error);
         }
     }
-
+    
     async handleAnswer(data) {
         try {
             const peerConnection = this.peerConnections[data.from];
@@ -343,7 +348,7 @@ class ScreenShare {
             console.error('Error handling answer:', error);
         }
     }
-
+    
     async handleIceCandidate(data) {
         try {
             const peerConnection = this.peerConnections[data.from];
@@ -357,7 +362,7 @@ class ScreenShare {
             console.error('Error handling ICE candidate:', error);
         }
     }
-
+    
     displayRemoteVideo(userId, stream) {
         // Save the stream reference
         this.remoteStreams[userId] = stream;
@@ -420,7 +425,7 @@ class ScreenShare {
         this.videosContainer.appendChild(container);
         this.videosContainer.style.display = 'block';
     }
-
+    
     removeRemoteVideo(userId) {
         const container = document.getElementById(`remote-video-container-${userId}`);
         if (container) {
@@ -435,7 +440,7 @@ class ScreenShare {
             }
         }
     }
-
+    
     async fetchRoomMembers() {
         try {
             const response = await fetch(`/api/room/${this.roomCode}/status`);
@@ -451,7 +456,7 @@ class ScreenShare {
             return [];
         }
     }
-
+    
     async fetchUsername(userId) {
         try {
             // First check if we have a members list in localStorage
