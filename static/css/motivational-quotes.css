@@ -1,0 +1,54 @@
+/**
+ * Motivational Quotes Styles
+ * Defines the appearance and animations for the quotes container
+ */
+
+/* Quotes container */
+.quotes-container {
+    margin-top: 30px;
+    padding: 15px;
+    background: rgba(30, 30, 40, 0.6);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: center;
+    transition: all 0.3s ease;
+    max-width: 100%;
+    animation: fadeIn 0.8s ease-out 0.8s both;
+}
+
+.quotes-container:hover {
+    background: rgba(30, 30, 40, 0.8);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Quote text */
+.quote-text {
+    font-size: 0.95rem;
+    color: var(--dark-text);
+    font-style: italic;
+    margin-bottom: 8px;
+    line-height: 1.5;
+    transition: opacity 0.5s ease;
+}
+
+/* Quote author */
+.quote-author {
+    font-size: 0.85rem;
+    color: var(--primary-light);
+    text-align: right;
+    margin: 0;
+    font-weight: 500;
+    transition: opacity 0.5s ease;
+}
+
+/* Highlight important words in quotes */
+.quote-text strong {
+    color: var(--primary-light);
+    font-weight: 600;
+}
+
+/* Quotes container animation on theme change */
+.theme-transition .quotes-container {
+    animation: pulse 1s ease-in-out;
+}

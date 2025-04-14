@@ -1,0 +1,499 @@
+/* Room Styles CSS - Make rooms look similar to the home page */
+
+/* Override the root variables to ensure colors are applied */
+:root {
+    /* Modern color palette matching the home page */
+    --primary: #3B82F6 !important;
+    --primary-light: #60A5FA !important;
+    --primary-dark: #2563EB !important;
+    --secondary: #10B981 !important;
+    --success: #10B981 !important;
+    --warning: #F59E0B !important;
+    --danger: #EF4444 !important;
+    --light: #F9FAFB !important;
+    --dark: #111827 !important;
+    --gray: #6B7280 !important;
+    --card-bg: #FFFFFF !important;
+    --body-bg: #F3F4F6 !important;
+    --border-color: rgba(209, 213, 219, 0.5) !important;
+}
+
+/* Force body background to match home page */
+body.room-page {
+    background-color: var(--body-bg) !important;
+    font-family: 'Inter', sans-serif !important;
+    color: var(--dark) !important;
+    background-image:
+        radial-gradient(circle at 100% 100%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.05) 0%, transparent 50%) !important;
+}
+
+/* Force navbar brand to match home page */
+.navbar-brand {
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    letter-spacing: -0.5px !important;
+}
+
+/* Force buttons to match home page */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 15px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Room detail page specific styles */
+.question-card {
+    border-radius: 16px;
+    background-color: var(--card-bg);
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+}
+
+.question-card:hover {
+    box-shadow: 0 15px 30px rgba(79, 70, 229, 0.1);
+    transform: translateY(-5px);
+}
+
+.question-header {
+    padding: 20px 25px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(16, 185, 129, 0.05) 100%);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.question-body {
+    padding: 20px 25px;
+}
+
+.editor-container {
+    height: 450px;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+}
+
+.editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Difficulty badges */
+.difficulty-badge {
+    font-size: 0.85rem;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.badge-easy {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    color: white;
+}
+
+.badge-medium {
+    background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+    color: white;
+}
+
+.badge-hard {
+    background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+    color: white;
+}
+
+/* Waiting icon */
+.waiting-icon {
+    font-size: 3rem;
+    color: var(--gray);
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.5;
+        transform: scale(0.95);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 0.5;
+        transform: scale(0.95);
+    }
+}
+
+:root {
+    /* Modern color palette matching the home page */
+    --primary: #3B82F6;
+    --primary-light: #60A5FA;
+    --primary-dark: #2563EB;
+    --secondary: #10B981;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --light: #F9FAFB;
+    --dark: #111827;
+    --gray: #6B7280;
+    --card-bg: #FFFFFF;
+    --body-bg: #F3F4F6;
+    --border-color: rgba(209, 213, 219, 0.5);
+}
+
+/* Body background */
+body.room-page {
+    background-color: var(--body-bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--dark);
+    background-image:
+        radial-gradient(circle at 100% 100%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.05) 0%, transparent 50%);
+}
+
+/* Room container */
+.rooms-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Room card styling */
+.room-card {
+    border-radius: 16px;
+    background-color: var(--card-bg);
+    margin-bottom: 25px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+}
+
+.room-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(79, 70, 229, 0.1);
+}
+
+/* Room header */
+.room-header {
+    padding: 20px 25px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(16, 185, 129, 0.05) 100%);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.room-title {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--primary);
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+/* Room code styling */
+.room-code {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.room-code:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Room info section */
+.room-info {
+    padding: 20px 25px;
+}
+
+.info-row {
+    display: flex;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+.info-label {
+    width: 120px;
+    color: var(--gray);
+    font-weight: 500;
+}
+
+.info-value {
+    flex-grow: 1;
+    font-weight: 600;
+}
+
+/* Member count styling */
+.member-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: rgba(59, 130, 246, 0.1);
+    padding: 8px 16px;
+    border-radius: 30px;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+/* Status indicators */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-active {
+    background-color: var(--success);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.status-inactive {
+    background-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.status-waiting {
+    background-color: var(--warning);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+/* Room actions */
+.room-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    padding: 20px 25px;
+    border-top: 1px solid var(--border-color);
+    background-color: rgba(249, 250, 251, 0.5);
+}
+
+/* Action bar */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 10px 0;
+}
+
+/* Quick join form */
+.quick-join {
+    flex: 1;
+    max-width: 350px;
+}
+
+.quick-join-form {
+    display: flex;
+    gap: 10px;
+}
+
+.quick-join-form input {
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    padding: 12px 16px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    transition: all 0.3s ease;
+}
+
+.quick-join-form input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.1);
+}
+
+/* Difficulty badges */
+.badge-difficulty {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.badge-easy {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    color: white;
+}
+
+.badge-medium {
+    background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+    color: white;
+}
+
+.badge-hard {
+    background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+    color: white;
+}
+
+/* Empty state styling */
+.empty-state {
+    text-align: center;
+    padding: 60px 30px;
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    margin-top: 20px;
+}
+
+.empty-state-icon {
+    font-size: 3.5rem;
+    color: var(--primary-light);
+    margin-bottom: 25px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.empty-state-text {
+    font-size: 1.5rem;
+    color: var(--dark);
+    margin-bottom: 15px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.empty-state-subtext {
+    color: var(--gray);
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Button styling */
+.btn {
+    border-radius: 12px;
+    font-weight: 600;
+    padding: 12px 24px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(rgba(255,255,255,0.2), transparent);
+    transform: translateY(-100%);
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn:hover::after {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(59, 130, 246, 0.3);
+}
+
+/* Navbar styling */
+.navbar-brand {
+    font-size: 1.8rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.navbar-brand span {
+    font-weight: 300;
+}
+
+.nav-link {
+    font-weight: 500;
+    color: var(--dark);
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+    color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.nav-link.active {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* Animation for room cards */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.room-card {
+    animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.room-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.room-card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.room-card:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+.room-card:nth-child(5) {
+    animation-delay: 0.4s;
+}

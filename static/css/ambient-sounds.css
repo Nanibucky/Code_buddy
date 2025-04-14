@@ -1,0 +1,83 @@
+/**
+ * Ambient Sound Effects Styles
+ * Defines the appearance and animations for the sound control button
+ */
+
+/* Sound control container */
+.sound-control {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+}
+
+/* Sound toggle button */
+.sound-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(30, 30, 40, 0.7);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.sound-toggle:hover {
+    transform: scale(1.1);
+    background: var(--primary);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.sound-toggle i {
+    font-size: 1.2rem;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+    transition: all 0.3s ease;
+}
+
+/* Sound enabled state */
+.sound-toggle.sound-on i {
+    animation: pulse 2s infinite;
+}
+
+/* Sound wave animation */
+.sound-wave {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    z-index: -1;
+}
+
+.sound-toggle.sound-on .sound-wave {
+    animation: soundWave 2s infinite;
+}
+
+/* Keyframes for sound wave animation */
+@keyframes soundWave {
+    0% {
+        width: 100%;
+        height: 100%;
+        opacity: 0.7;
+    }
+    100% {
+        width: 200%;
+        height: 200%;
+        opacity: 0;
+    }
+}
+
+/* Audio container (hidden) */
+.audio-container {
+    display: none;
+}

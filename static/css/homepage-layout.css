@@ -1,0 +1,47 @@
+/* Homepage Layout CSS - Hide room-specific elements */
+
+/* Hide room members and scorecard on homepage */
+body:not(.room-page) .room-members-section,
+body.home-page .room-members-section {
+    display: none !important;
+}
+
+/* Adjust spacing on homepage when these elements are hidden */
+body:not(.room-page) .question-container,
+body.home-page .question-container {
+    padding-top: 20px !important;
+}
+
+/* Ensure room layout still looks good without these elements */
+body:not(.room-page) .room-layout,
+body.home-page .room-layout {
+    margin-top: 20px !important;
+}
+
+/* Make sure these elements are visible in room pages */
+body.room-page .room-members-section,
+body.room-page .sidebar-card {
+    display: block !important;
+}
+
+/* Improve room layout for better organization */
+body.room-page .room-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+/* Ensure proper spacing for sidebar elements */
+body.room-page .sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    body:not(.room-page) .question-container {
+        padding-top: 15px !important;
+    }
+}

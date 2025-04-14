@@ -1,0 +1,119 @@
+/**
+ * Fingerprint Animation Styles
+ * Defines the appearance and animations for the fingerprint scanning effect
+ */
+
+/* Fingerprint container */
+.fingerprint-container {
+    position: relative;
+    display: inline-block;
+    margin-right: 5px;
+    width: 20px;
+    height: 20px;
+}
+
+/* Fingerprint icon */
+.fingerprint-icon {
+    font-size: 1.2rem;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+/* Pulse animation on hover */
+.fingerprint-icon.pulse {
+    animation: pulse 1.5s infinite;
+}
+
+/* Scanning animation */
+.fingerprint-icon.scanning {
+    animation: scanning 1.5s infinite;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Success animation */
+.fingerprint-icon.success {
+    color: #10b981;
+    animation: success 0.5s forwards;
+}
+
+/* Scan effect */
+.scan-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: 1;
+    opacity: 0;
+    transform: scale(1);
+}
+
+/* Scan effect animation */
+.scan-effect.scanning {
+    animation: scanEffect 1.5s infinite;
+}
+
+/* Keyframes for pulse animation */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Keyframes for scanning animation */
+@keyframes scanning {
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    50% {
+        transform: scale(1.1);
+        filter: brightness(1.5);
+    }
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+/* Keyframes for scan effect */
+@keyframes scanEffect {
+    0% {
+        opacity: 0.7;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+    }
+    70% {
+        opacity: 0;
+        transform: scale(2);
+        box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+}
+
+/* Keyframes for success animation */
+@keyframes success {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.5);
+    }
+    100% {
+        transform: scale(1);
+    }
+}

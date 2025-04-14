@@ -1,0 +1,94 @@
+/* Layout Improvements CSS */
+
+/* Improve question container spacing */
+.question-container {
+    padding: 25px !important;
+    margin-bottom: 35px !important;
+}
+
+/* Fix room layout spacing */
+.room-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px !important;
+    margin-bottom: 25px !important;
+}
+
+/* Improve question card and editor section spacing */
+.question-card {
+    padding: 20px !important;
+    margin-bottom: 20px !important;
+}
+
+.editor-section {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* Enhance submit container layout */
+#submit-container {
+    text-align: center !important;
+    margin-top: 25px !important;
+    margin-bottom: 30px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 15px !important;
+    padding: 10px !important;
+}
+
+/* Improve button spacing and visibility */
+.btn {
+    margin: 5px !important;
+    padding: 14px 28px !important;
+}
+
+#submit-btn {
+    padding: 15px 30px !important;
+    font-size: 1.05rem !important;
+    box-shadow: 0 6px 12px rgba(16, 185, 129, 0.2) !important;
+}
+
+#generate-btn {
+    padding: 15px 30px !important;
+    font-size: 1.05rem !important;
+    box-shadow: 0 6px 12px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Improve spacing in controls section */
+#controls {
+    padding: 30px !important;
+    margin-bottom: 35px !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .room-layout {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .editor-section {
+        flex-direction: column !important;
+    }
+    
+    .question-card, 
+    #no-question-placeholder,
+    .editor-container {
+        width: 100% !important;
+        margin-bottom: 20px;
+    }
+    
+    #submit-container {
+        flex-direction: column;
+        gap: 10px !important;
+    }
+    
+    .btn {
+        width: 100%;
+        padding: 12px 20px !important;
+    }
+    
+    .room-members-section {
+        margin-bottom: 20px !important;
+    }
+}

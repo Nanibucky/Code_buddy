@@ -1,0 +1,296 @@
+/* Login Page Animations CSS */
+
+/* Keyframes for animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes borderPulse {
+  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+
+@keyframes floatParticle {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(10px, 10px); }
+  50% { transform: translate(0, 20px); }
+  75% { transform: translate(-10px, 10px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0.1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.1; }
+}
+
+@keyframes floatParticle {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(10px, 10px); }
+  50% { transform: translate(0, 20px); }
+  75% { transform: translate(-10px, 10px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0.1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.1; }
+}
+
+@keyframes rippleEffect {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+/* Particles styling */
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.particle {
+  position: absolute;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  border-radius: 50%;
+  animation: floatParticle 15s infinite ease-in-out, fadeInOut 10s infinite ease-in-out;
+}
+
+/* Ripple effect for buttons */
+.btn-login {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: rippleEffect 0.6s linear;
+  pointer-events: none;
+}
+
+/* Background animation */
+.animated-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  overflow: hidden;
+}
+
+.animated-background::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 25%),
+              radial-gradient(circle at 30% 30%, rgba(14, 165, 233, 0.15) 0%, transparent 35%),
+              radial-gradient(circle at 70% 70%, rgba(147, 51, 234, 0.15) 0%, transparent 30%);
+  animation: float 15s ease-in-out infinite;
+}
+
+/* Login container animations */
+.login-container {
+  animation: fadeIn 0.8s ease-out forwards;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Brand animation */
+.brand h1 {
+  position: relative;
+  display: inline-block;
+  animation: float 6s ease-in-out infinite;
+}
+
+.brand h1::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  transform: scaleX(0);
+  transform-origin: bottom right;
+  transition: transform 0.5s ease;
+}
+
+.brand:hover h1::after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
+}
+
+/* Welcome text animations */
+.welcome-text h2 {
+  animation: fadeIn 0.8s ease-out 0.2s both;
+}
+
+.welcome-text p {
+  animation: fadeIn 0.8s ease-out 0.4s both;
+}
+
+/* Form control animations */
+.input-group {
+  animation: fadeIn 0.8s ease-out calc(0.4s + var(--i, 0) * 0.1s) both;
+}
+
+.form-control {
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(99, 102, 241, 0.2);
+}
+
+/* Input icon animations */
+.input-icon {
+  transition: all 0.3s ease;
+}
+
+.form-control:focus + .input-icon,
+.input-group:hover .input-icon,
+.input-group.input-focus .input-icon {
+  color: var(--primary);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.input-group.input-focus .form-control {
+  border-color: var(--primary);
+  box-shadow: 0 5px 15px rgba(99, 102, 241, 0.2);
+  transform: translateY(-2px);
+  background-color: white;
+}
+
+/* Password toggle animation */
+.password-toggle {
+  transition: all 0.3s ease;
+}
+
+.password-toggle:hover {
+  transform: translateY(-50%) scale(1.2);
+  color: var(--primary);
+}
+
+/* Button animations */
+.btn-login {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: fadeIn 0.8s ease-out 0.6s both;
+}
+
+.btn-login::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    transparent 100%);
+  animation: shimmer 3s infinite;
+}
+
+.btn-login:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+}
+
+.btn-login:active {
+  transform: translateY(0);
+}
+
+/* Remember me checkbox animation */
+.remember-me {
+  animation: fadeIn 0.8s ease-out 0.5s both;
+}
+
+.remember-me input {
+  transition: all 0.3s ease;
+}
+
+.remember-me input:checked {
+  animation: pulse 0.5s ease-in-out;
+}
+
+/* Signup link animation */
+.signup-link {
+  animation: fadeIn 0.8s ease-out 0.7s both;
+}
+
+.signup-link a {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.signup-link a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--primary);
+  transform: scaleX(0);
+  transform-origin: bottom right;
+  transition: transform 0.3s ease;
+}
+
+.signup-link a:hover {
+  color: var(--primary-dark);
+  text-decoration: none;
+}
+
+.signup-link a:hover::after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
+}
+
+/* Flash messages animations */
+.flash-messages > div {
+  animation: fadeIn 0.5s ease-out forwards, borderPulse 2s infinite;
+}
+
+/* Focus effect for the entire form when interacting */
+form:focus-within {
+  animation: pulse 1s ease-in-out;
+}

@@ -1,0 +1,387 @@
+<!-- screen_share.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Sharing</title>
+    <style>
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            display: none;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+        }
+
+        #shareScreenBtn {
+            transition: all 0.3s ease;
+        }
+
+        #shareScreenBtn.btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: white;
+        }
+
+        .remote-video-container {
+            margin-top: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .remote-video-label {
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Video elements -->
+    <div id="videosContainer" class="video-container">
+        <video id="localScreenVideo" autoplay muted></video>
+    </div>
+
+    <!-- Screen Sharing Button -->
+    <button id="shareScreenBtn" class="btn btn-outline-secondary">
+        <i class="fas fa-desktop me-2"></i>Share Screen
+    </button>
+
+    <script>
+        // This script will be initialized from the main page that includes this template
+        function initializeScreenSharing(roomCode, userId, socketInstance) {
+            const shareBtn = document.getElementById('shareScreenBtn');
+            const localVideo = document.getElementById('localScreenVideo');
+            const videosContainer = document.getElementById('videosContainer');
+            
+            if (!shareBtn || !localVideo || !videosContainer) {
+                console.error('Screen sharing elements not found');
+                return;
+            }
+            
+            // Use the socket instance passed from the parent page
+            const socket = socketInstance;
+            let localStream = null;
+            let peerConnections = {};
+            
+            // Attach event listener to share button
+            shareBtn.addEventListener('click', function() {
+                if (localStream) {
+                    stopScreenShare();
+                } else {
+                    startScreenShare();
+                }
+            });
+            
+            // Function to start screen sharing
+            async function startScreenShare() {
+                try {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({ 
+                        video: {
+                            cursor: 'always',
+                            displaySurface: 'monitor',
+                            logicalSurface: true,
+                            frameRate: { ideal: 30, max: 60 }
+                        },
+                        audio: false
+                    });
+                    
+                    localStream = stream;
+                    localVideo.srcObject = stream;
+                    localVideo.style.display = 'block';
+                    videosContainer.style.display = 'block';
+                    
+                    shareBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Stop Sharing';
+                    shareBtn.classList.add('btn-danger');
+                    shareBtn.classList.remove('btn-outline-secondary');
+                    
+                    // Handle when user ends sharing via browser UI
+                    stream.getVideoTracks()[0].addEventListener('ended', () => {
+                        console.log('User ended screen share through browser UI');
+                        stopScreenShare();
+                    });
+                    
+                    // Notify other users that you've started sharing
+                    socket.emit('screen_share_started', { room: roomCode });
+                    
+                    // Get the room members and create peer connections
+                    fetch(`/api/room/${roomCode}/status`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                data.room.members.forEach(member => {
+                                    if (member.user_id !== userId) {
+                                        createPeerConnection(member.user_id, stream);
+                                    }
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching room members:', error);
+                        });
+                    
+                } catch (error) {
+                    console.error('Screen share error:', error);
+                    if (error.name === 'NotAllowedError') {
+                        alert('Screen sharing permission denied. Please allow screen sharing and try again.');
+                    } else {
+                        alert('Could not start screen sharing: ' + error.message);
+                    }
+                    
+                    shareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
+                    shareBtn.classList.remove('btn-danger');
+                    shareBtn.classList.add('btn-outline-secondary');
+                }
+            }
+            
+            // Function to stop screen sharing
+            function stopScreenShare() {
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                    
+                    // Remove all remote videos
+                    const remoteVideos = document.querySelectorAll('.remoteVideo');
+                    remoteVideos.forEach(video => {
+                        video.parentElement.remove();
+                    });
+                    
+                    // Clear local video
+                    localVideo.srcObject = null;
+                    localVideo.style.display = 'none';
+                    videosContainer.style.display = 'none';
+                    localStream = null;
+                    
+                    // Close all peer connections
+                    Object.values(peerConnections).forEach(pc => {
+                        if (pc) pc.close();
+                    });
+                    peerConnections = {};
+                    
+                    // Update button state
+                    shareBtn.innerHTML = '<i class="fas fa-desktop me-2"></i>Share Screen';
+                    shareBtn.classList.remove('btn-danger');
+                    shareBtn.classList.add('btn-outline-secondary');
+                    
+                    // Notify other users
+                    socket.emit('screen_share_stopped', { room: roomCode });
+                }
+            }
+            
+            // Create a WebRTC peer connection
+            function createPeerConnection(toUserId, stream) {
+                const peerConnection = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { urls: 'stun:stun3.l.google.com:19302' },
+                        { urls: 'stun:stun4.l.google.com:19302' }
+                    ],
+                    iceCandidatePoolSize: 10
+                });
+                
+                peerConnections[toUserId] = peerConnection;
+                
+                // Add all tracks from the stream to the peer connection
+                stream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, stream);
+                });
+                
+                // Handle ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log('Sending ICE candidate to', toUserId);
+                        socket.emit('ice_candidate', {
+                            candidate: event.candidate,
+                            room: roomCode,
+                            from: userId,
+                            to: toUserId
+                        });
+                    }
+                };
+                
+                // Monitor connection state changes
+                peerConnection.oniceconnectionstatechange = () => {
+                    console.log(`ICE connection state with ${toUserId}:`, peerConnection.iceConnectionState);
+                };
+                
+                // Create and send the offer
+                peerConnection.createOffer()
+                    .then(offer => peerConnection.setLocalDescription(offer))
+                    .then(() => {
+                        console.log('Sending offer to', toUserId);
+                        socket.emit('screen_share_offer', {
+                            offer: peerConnection.localDescription,
+                            room: roomCode,
+                            from: userId,
+                            to: toUserId
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error creating offer:', error);
+                    });
+                    
+                return peerConnection;
+            }
+            
+            // Handle incoming offers
+            socket.on('screen_share_offer', async (data) => {
+                try {
+                    if (data.to === userId) {
+                        console.log('Received offer from', data.from);
+                        
+                        const peerConnection = new RTCPeerConnection({
+                            iceServers: [
+                                { urls: 'stun:stun.l.google.com:19302' },
+                                { urls: 'stun:stun1.l.google.com:19302' },
+                                { urls: 'stun:stun2.l.google.com:19302' },
+                                { urls: 'stun:stun3.l.google.com:19302' },
+                                { urls: 'stun:stun4.l.google.com:19302' }
+                            ],
+                            iceCandidatePoolSize: 10
+                        });
+                        
+                        peerConnections[data.from] = peerConnection;
+                        
+                        // Handle incoming tracks
+                        peerConnection.ontrack = (event) => {
+                            console.log('Received remote track from', data.from);
+                            
+                            // Create container for remote video
+                            const container = document.createElement('div');
+                            container.classList.add('remote-video-container');
+                            
+                            // Create video element
+                            const remoteVideo = document.createElement('video');
+                            remoteVideo.classList.add('remoteVideo');
+                            remoteVideo.autoplay = true;
+                            remoteVideo.playsInline = true;
+                            remoteVideo.srcObject = event.streams[0];
+                            
+                            // Create username label
+                            const label = document.createElement('div');
+                            label.classList.add('remote-video-label');
+                            
+                            // Get the username from the data attribute
+                            fetch(`/api/user/${data.from}/displayname`)
+                                .then(response => response.json())
+                                .then(userData => {
+                                    if (userData.success) {
+                                        label.textContent = userData.display_name + ' is sharing';
+                                    } else {
+                                        label.textContent = 'Screen share';
+                                    }
+                                })
+                                .catch(() => {
+                                    label.textContent = 'Screen share';
+                                });
+                            
+                            // Add elements to DOM
+                            container.appendChild(remoteVideo);
+                            container.appendChild(label);
+                            videosContainer.appendChild(container);
+                            videosContainer.style.display = 'block';
+                        };
+                        
+                        // Handle ICE candidates
+                        peerConnection.onicecandidate = (event) => {
+                            if (event.candidate) {
+                                socket.emit('ice_candidate', {
+                                    candidate: event.candidate,
+                                    room: roomCode,
+                                    from: userId,
+                                    to: data.from
+                                });
+                            }
+                        };
+                        
+                        // Set the remote description and create an answer
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        
+                        // Send the answer back
+                        socket.emit('screen_share_answer', {
+                            answer: peerConnection.localDescription,
+                            room: roomCode,
+                            from: userId,
+                            to: data.from
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error handling offer:', error);
+                }
+            });
+            
+            // Handle incoming answers
+            socket.on('screen_share_answer', async (data) => {
+                try {
+                    if (data.to === userId) {
+                        console.log('Received answer from', data.from);
+                        const peerConnection = peerConnections[data.from];
+                        
+                        if (peerConnection) {
+                            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling answer:', error);
+                }
+            });
+            
+            // Handle incoming ICE candidates
+            socket.on('ice_candidate', async (data) => {
+                try {
+                    if (data.to === userId) {
+                        console.log('Received ICE candidate from', data.from);
+                        const peerConnection = peerConnections[data.from];
+                        
+                        if (peerConnection) {
+                            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling ICE candidate:', error);
+                }
+            });
+            
+            // Handle when a new user joins
+            socket.on('screen_user_joined', (data) => {
+                console.log('User joined:', data.user);
+                
+                if (localStream) {
+                    createPeerConnection(data.user, localStream);
+                }
+            });
+            
+            // Clean up when the window is closed
+            window.addEventListener('beforeunload', function() {
+                stopScreenShare();
+                socket.emit('leave_screen_room', { room: roomCode });
+            });
+            
+            // Return the API for controlling the screen share
+            return {
+                startScreenShare,
+                stopScreenShare
+            };
+        }
+    </script>
+</body>
+</html>

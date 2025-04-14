@@ -1,0 +1,100 @@
+/**
+ * 3D Cube Animation Styles
+ * Defines the appearance and 3D transformations for the cube
+ */
+
+/* Cube container */
+.cube-container {
+    width: 100px;
+    height: 100px;
+    perspective: 800px;
+    margin: 0 auto 30px;
+    position: relative;
+    z-index: 10;
+}
+
+/* Cube */
+.cube {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(-15deg) rotateY(15deg);
+    transition: transform 0.5s ease;
+    animation: float 6s ease-in-out infinite;
+}
+
+/* Cube faces */
+.cube-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+    backface-visibility: visible;
+    background: rgba(30, 30, 40, 0.8);
+    transition: all 0.3s ease;
+}
+
+/* Individual face transformations */
+.cube-face-front {
+    transform: translateZ(50px);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+.cube-face-back {
+    transform: rotateY(180deg) translateZ(50px);
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+}
+
+.cube-face-right {
+    transform: rotateY(90deg) translateZ(50px);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+}
+
+.cube-face-left {
+    transform: rotateY(-90deg) translateZ(50px);
+    background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+}
+
+.cube-face-top {
+    transform: rotateX(90deg) translateZ(50px);
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+}
+
+.cube-face-bottom {
+    transform: rotateX(-90deg) translateZ(50px);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+}
+
+/* Hover effect */
+.cube:hover {
+    animation-play-state: paused;
+}
+
+/* Glow effect on faces */
+.cube-face i {
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+    transition: all 0.3s ease;
+}
+
+.cube:hover .cube-face i {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
+}
+
+/* Float animation */
+@keyframes float {
+    0%, 100% {
+        transform: rotateX(-15deg) rotateY(15deg) translateY(0);
+    }
+    50% {
+        transform: rotateX(-25deg) rotateY(25deg) translateY(-10px);
+    }
+}
