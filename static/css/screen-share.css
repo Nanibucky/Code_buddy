@@ -1,0 +1,178 @@
+/* static/css/screen-share.css */
+
+/* Video Container */
+.video-container {
+    position: relative;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    display: none;
+}
+
+.video-container.active {
+    display: block;
+}
+
+/* Local Video */
+#localScreenVideo {
+    width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    background-color: #f0f0f0;
+    display: none;
+}
+
+/* Remote Video Container */
+.remote-video-container {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    background-color: #000;
+}
+
+/* Remote Video */
+.remote-video {
+    width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    background-color: #f0f0f0;
+}
+
+/* Video Label */
+.remote-video-label {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    z-index: 5;
+}
+
+/* Sharing Status */
+.sharing-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    z-index: 5;
+}
+
+/* Pulsing Record Button */
+.recording-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: #ef4444;
+    border-radius: 50%;
+    margin-right: 5px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Share Button */
+#shareScreenBtn {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+#shareScreenBtn:hover {
+    transform: translateY(-2px);
+}
+
+#shareScreenBtn.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+#shareScreenBtn.btn-danger:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+}
+
+/* Share Tooltip */
+.share-tooltip {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.share-tooltip.visible {
+    opacity: 1;
+}
+
+/* Fullscreen button */
+.fullscreen-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+    z-index: 5;
+}
+
+.fullscreen-btn:hover {
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .video-container {
+        max-height: 300px;
+    }
+    
+    #localScreenVideo,
+    .remote-video {
+        max-height: 300px;
+    }
+    
+    .remote-video-label {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+}
