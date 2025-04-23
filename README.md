@@ -41,7 +41,7 @@ Code Buddy is an interactive coding platform that enhances your programming skil
 
 1. Clone the repository
    ```
-   git clone https://github.com/yourusername/code-buddy.git
+   git clone https://github.com/Nanibucky/Code_buddy.git
    cd code-buddy
    ```
 
@@ -61,17 +61,12 @@ Code Buddy is an interactive coding platform that enhances your programming skil
    OPENAI_API_KEY=your_openai_api_key
    ```
 
-5. Initialize the database
+5. Run the application
    ```
    python app.py
    ```
 
-6. Run the application
-   ```
-   python app.py
-   ```
-
-7. Open your browser and navigate to `http://localhost:5000`
+6. Open your browser and navigate to `http://localhost:5000`
 
 ## Technologies Used
 
