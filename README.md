@@ -1,6 +1,6 @@
 # Code Buddy
 
-![Code Buddy](static/img/logo.png)
+![Code Buddy](https://github.com/Nanibucky/Code_buddy/blob/main/images/image.png))
 
 Code Buddy is an interactive coding platform that enhances your programming skills through AI-powered challenges, real-time collaboration, and personalized assistance.
 
