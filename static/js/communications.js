@@ -1,8 +1,8 @@
 /**
- * Screen Sharing Module for CodeChallenge Rooms
- * Handles all WebRTC and screen sharing functionality
+ * Communications Module for CodeChallenge Rooms
+ * Handles all WebRTC and communication functionality
  */
-class ScreenSharing {
+class Communications {
     constructor(options) {
         // Required options
         this.roomCode = options.roomCode;
@@ -18,11 +18,16 @@ class ScreenSharing {
         this.shareBtn = document.getElementById(options.shareBtnId || 'shareScreenBtn');
         this.videosContainer = document.getElementById(options.videosContainerId || 'videosContainer');
         this.localVideoElem = document.getElementById(options.localVideoId || 'localScreenVideo');
+        this.startCameraBtn = document.getElementById(options.startCameraBtnId || 'startCameraBtn');
+        this.muteBtn = document.getElementById(options.muteBtnId || 'muteBtn');
         
         // State
         this.localStream = null;
+        this.localCameraStream = null;
         this.peerConnections = {};
         this.isSharing = false;
+        this.isCameraOn = false;
+        this.isMuted = true;
         this.remoteStreams = {};
         
         // Initialize
@@ -47,9 +52,27 @@ class ScreenSharing {
                 this.startScreenShare();
             }
         });
+
+        // Add event listener to camera button
+        this.startCameraBtn.addEventListener('click', () => {
+            if (this.isCameraOn) {
+                this.stopCamera();
+            } else {
+                this.startCamera();
+            }
+        });
+
+        // Add event listener to mute button
+        this.muteBtn.addEventListener('click', () => {
+            if (this.isMuted) {
+                this.unmuteAudio();
+            } else {
+                this.muteAudio();
+            }
+        });
         
-        // Join the screen sharing room
-        this.socket.emit('join_screen_room', { room: this.roomCode });
+        // Join the communication room
+        this.socket.emit('join_comm_room', { room: this.roomCode });
         
         // Set up socket event listeners
         this.setupSocketListeners();
@@ -57,23 +80,24 @@ class ScreenSharing {
         // Clean up on page unload
         window.addEventListener('beforeunload', () => {
             this.stopScreenShare();
-            this.socket.emit('leave_screen_room', { room: this.roomCode });
+            this.stopCamera();
+            this.socket.emit('leave_comm_room', { room: this.roomCode });
         });
     }
     
     setupSocketListeners() {
         // When a peer sends an offer
-        this.socket.on('screen_share_offer', async (data) => {
+        this.socket.on('webrtc_offer', async (data) => {
             if (data.to === this.userId) {
-                console.log('Received screen share offer from', data.from);
+                console.log('Received WebRTC offer from', data.from);
                 await this.handleOffer(data);
             }
         });
         
         // When a peer sends an answer to our offer
-        this.socket.on('screen_share_answer', async (data) => {
+        this.socket.on('webrtc_answer', async (data) => {
             if (data.to === this.userId) {
-                console.log('Received screen share answer from', data.from);
+                console.log('Received WebRTC answer from', data.from);
                 await this.handleAnswer(data);
             }
         });
@@ -87,32 +111,36 @@ class ScreenSharing {
         });
         
         // When a new user joins the room
-        this.socket.on('screen_user_joined', (data) => {
-            console.log('User joined screen room:', data.user);
+        this.socket.on('user_joined', (data) => {
+            console.log('User joined comm room:', data.user);
             
             // If we're sharing, send them an offer
-            if (this.isSharing && this.localStream && data.user !== this.userId) {
+            if ((this.isSharing || this.isCameraOn) && data.user !== this.userId) {
                 this.createPeerConnection(data.user);
             }
         });
         
-        // When a user starts sharing their screen
-        this.socket.on('screen_share_started', (data) => {
-            console.log('User started sharing:', data.user);
+        // When a user starts sharing their screen or camera
+        this.socket.on('media_started', (data) => {
+            console.log(`User ${data.user} started ${data.type}`);
             
             // Callback for UI updates
             if (data.user !== this.userId) {
-                this.onUserStartSharing(data);
+                if (data.type === 'screen') {
+                    this.onUserStartSharing(data);
+                }
             }
         });
         
-        // When a user stops sharing their screen
-        this.socket.on('screen_share_stopped', (data) => {
-            console.log('User stopped sharing:', data.user);
+        // When a user stops sharing their screen or camera
+        this.socket.on('media_stopped', (data) => {
+            console.log(`User ${data.user} stopped ${data.type}`);
             
             // Callback for UI updates
             if (data.user !== this.userId) {
-                this.onUserStopSharing(data);
+                if (data.type === 'screen') {
+                    this.onUserStopSharing(data);
+                }
             }
             
             // Remove any videos from this user
@@ -151,9 +179,10 @@ class ScreenSharing {
             });
             
             // Notify other users that we've started sharing
-            this.socket.emit('screen_share_started', { 
+            this.socket.emit('media_started', {
                 room: this.roomCode,
-                username: this.username
+                username: this.username,
+                type: 'screen'
             });
             
             // Create peer connections with all users in the room
@@ -161,7 +190,7 @@ class ScreenSharing {
             this.fetchRoomMembers().then(members => {
                 members.forEach(member => {
                     if (member.user_id !== this.userId) {
-                        this.createPeerConnection(member.user_id);
+                        this.createOrUpdatePeerConnection(member.user_id);
                     }
                 });
             });
@@ -190,11 +219,17 @@ class ScreenSharing {
             this.localVideoElem.srcObject = null;
             this.localVideoElem.style.display = 'none';
             
-            // Close all peer connections
-            Object.values(this.peerConnections).forEach(pc => {
-                if (pc) pc.close();
-            });
-            this.peerConnections = {};
+            // remove tracks from peer connections
+            if (this.localStream) {
+                this.localStream.getTracks().forEach(track => {
+                    Object.values(this.peerConnections).forEach(pc => {
+                        const sender = pc.getSenders().find(s => s.track === track);
+                        if (sender) {
+                            pc.removeTrack(sender);
+                        }
+                    });
+                });
+            }
             
             // Reset the share button
             this.resetShareButton();
@@ -206,9 +241,10 @@ class ScreenSharing {
             }
             
             // Notify other users that we've stopped sharing
-            this.socket.emit('screen_share_stopped', { 
+            this.socket.emit('media_stopped', {
                 room: this.roomCode,
-                username: this.username
+                username: this.username,
+                type: 'screen'
             });
         }
     }
@@ -219,51 +255,60 @@ class ScreenSharing {
         this.shareBtn.classList.add('btn-outline-secondary');
     }
     
-    createPeerConnection(peerId) {
-        if (this.peerConnections[peerId]) {
-            // Close existing connection
-            this.peerConnections[peerId].close();
-            delete this.peerConnections[peerId];
+    createOrUpdatePeerConnection(peerId) {
+        let peerConnection = this.peerConnections[peerId];
+        if (!peerConnection) {
+            peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' }
+                ],
+                iceCandidatePoolSize: 10
+            });
+            this.peerConnections[peerId] = peerConnection;
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    this.socket.emit('ice_candidate', {
+                        candidate: event.candidate,
+                        room: this.roomCode,
+                        from: this.userId,
+                        to: peerId
+                    });
+                }
+            };
+
+            peerConnection.oniceconnectionstatechange = () => {
+                console.log(`ICE connection state with ${peerId}:`, peerConnection.iceConnectionState);
+            };
+
+            peerConnection.ontrack = (event) => {
+                console.log('Received remote track from', peerId);
+                const stream = event.streams[0];
+                const videoTrack = stream.getVideoTracks()[0];
+                let streamType = 'camera';
+                if (videoTrack && videoTrack.getSettings().displaySurface) {
+                    streamType = 'screen';
+                }
+                this.displayRemoteVideo(peerId, stream, streamType);
+            };
         }
-        
-        // Create new RTCPeerConnection with STUN servers
-        const peerConnection = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
-            ],
-            iceCandidatePoolSize: 10
-        });
-        
-        this.peerConnections[peerId] = peerConnection;
-        
-        // Add local stream tracks to the peer connection
+
+        // Add tracks
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => {
                 peerConnection.addTrack(track, this.localStream);
             });
         }
-        
-        // Handle ICE candidates
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                this.socket.emit('ice_candidate', {
-                    candidate: event.candidate,
-                    room: this.roomCode,
-                    from: this.userId,
-                    to: peerId
-                });
-            }
-        };
-        
-        // Monitor connection state
-        peerConnection.oniceconnectionstatechange = () => {
-            console.log(`ICE connection state with ${peerId}:`, peerConnection.iceConnectionState);
-        };
-        
+        if (this.localCameraStream) {
+            this.localCameraStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, this.localCameraStream);
+            });
+        }
+
         // Create and send offer
         peerConnection.createOffer()
             .then(offer => peerConnection.setLocalDescription(offer))
@@ -279,7 +324,7 @@ class ScreenSharing {
             .catch(error => {
                 console.error('Error creating offer:', error);
             });
-            
+
         return peerConnection;
     }
     
@@ -302,7 +347,13 @@ class ScreenSharing {
             // Handle incoming tracks (remote screen)
             peerConnection.ontrack = (event) => {
                 console.log('Received remote track from', data.from);
-                this.displayRemoteVideo(data.from, event.streams[0]);
+                const stream = event.streams[0];
+                const videoTrack = stream.getVideoTracks()[0];
+                let streamType = 'camera';
+                if (videoTrack && videoTrack.getSettings().displaySurface) {
+                    streamType = 'screen';
+                }
+                this.displayRemoteVideo(data.from, stream, streamType);
             };
             
             // Handle ICE candidates
@@ -363,34 +414,41 @@ class ScreenSharing {
         }
     }
     
-    displayRemoteVideo(userId, stream) {
-        // Save the stream reference
-        this.remoteStreams[userId] = stream;
-        
-        // Check if there's already a video element for this user
-        const existingVideo = document.getElementById(`remote-video-${userId}`);
-        if (existingVideo) {
-            existingVideo.srcObject = stream;
+    displayRemoteVideo(userId, stream, streamType) {
+        if (!this.remoteStreams[userId]) {
+            this.remoteStreams[userId] = {};
+        }
+        this.remoteStreams[userId][streamType] = stream;
+
+        let userContainer = document.getElementById(`user-video-container-${userId}`);
+        if (!userContainer) {
+            userContainer = document.createElement('div');
+            userContainer.id = `user-video-container-${userId}`;
+            userContainer.className = 'user-video-container mb-3';
+            this.videosContainer.appendChild(userContainer);
+        }
+
+        const videoId = `remote-video-${userId}-${streamType}`;
+        let videoContainer = document.getElementById(videoId);
+        if (videoContainer) {
+            const video = videoContainer.querySelector('video');
+            video.srcObject = stream;
             return;
         }
-        
-        // Create container for the video
-        const container = document.createElement('div');
-        container.id = `remote-video-container-${userId}`;
-        container.className = 'remote-video-container mb-3';
-        container.style.position = 'relative';
-        
-        // Create video element
+
+        videoContainer = document.createElement('div');
+        videoContainer.id = videoId;
+        videoContainer.className = 'remote-video-container';
+        videoContainer.style.position = 'relative';
+
         const video = document.createElement('video');
-        video.id = `remote-video-${userId}`;
         video.className = 'remote-video w-100';
         video.autoplay = true;
         video.playsInline = true;
         video.srcObject = stream;
         video.style.borderRadius = '8px';
         video.style.maxHeight = '400px';
-        
-        // Create user label
+
         const label = document.createElement('div');
         label.className = 'remote-video-label';
         label.style.position = 'absolute';
@@ -401,44 +459,164 @@ class ScreenSharing {
         label.style.padding = '5px 10px';
         label.style.borderRadius = '4px';
         label.style.fontSize = '0.9rem';
-        
-        // Try to get username from the DOM if available
-        const usernameElem = document.querySelector(`[data-user-id="${userId}"] .member-name span`);
-        if (usernameElem) {
-            label.textContent = `${usernameElem.textContent}'s screen`;
-        } else {
-            label.textContent = 'Screen share';
-            
-            // Try to fetch username
-            this.fetchUsername(userId).then(username => {
-                if (username) {
-                    label.textContent = `${username}'s screen`;
-                }
-            });
-        }
-        
-        // Add elements to container
-        container.appendChild(video);
-        container.appendChild(label);
-        
-        // Add container to videos container
-        this.videosContainer.appendChild(container);
+
+        this.fetchUsername(userId).then(username => {
+            label.textContent = `${username}'s ${streamType}`;
+        });
+
+        videoContainer.appendChild(video);
+        videoContainer.appendChild(label);
+        userContainer.appendChild(videoContainer);
         this.videosContainer.style.display = 'block';
+
+        if (stream.getAudioTracks().length > 0) {
+            this.handleSpeakingIndicator(userId, stream);
+        }
     }
-    
+
     removeRemoteVideo(userId) {
-        const container = document.getElementById(`remote-video-container-${userId}`);
-        if (container) {
-            container.remove();
-            
-            // Delete stream reference
+        const userContainer = document.getElementById(`user-video-container-${userId}`);
+        if (userContainer) {
+            userContainer.remove();
             delete this.remoteStreams[userId];
-            
-            // Check if there are any videos left
-            if (Object.keys(this.remoteStreams).length === 0 && !this.isSharing) {
+
+            if (Object.keys(this.remoteStreams).length === 0 && !this.isSharing && !this.isCameraOn) {
                 this.videosContainer.style.display = 'none';
             }
         }
+    }
+
+    async startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+
+            this.localCameraStream = stream;
+            this.isCameraOn = true;
+            this.isMuted = false;
+
+            this.localVideoElem.srcObject = stream;
+            this.localVideoElem.style.display = 'block';
+            this.videosContainer.style.display = 'block';
+
+            this.startCameraBtn.innerHTML = '<i class="fas fa-video-slash me-2"></i>Stop Camera';
+            this.startCameraBtn.classList.add('btn-danger');
+            this.startCameraBtn.classList.remove('btn-outline-secondary');
+
+            this.muteBtn.innerHTML = '<i class="fas fa-microphone-slash me-2"></i>Mute';
+            this.muteBtn.classList.remove('btn-danger');
+            this.muteBtn.classList.add('btn-outline-secondary');
+
+            this.fetchRoomMembers().then(members => {
+                members.forEach(member => {
+                    if (member.user_id !== this.userId) {
+                        this.createOrUpdatePeerConnection(member.user_id);
+                    }
+                });
+            });
+
+            // Notify other users that we've started sharing
+            this.socket.emit('media_started', {
+                room: this.roomCode,
+                username: this.username,
+                type: 'camera'
+            });
+
+        } catch (error) {
+            console.error('Error starting camera:', error);
+            alert('Failed to start camera: ' + error.message);
+        }
+    }
+
+    stopCamera() {
+        if (this.localCameraStream) {
+            this.localCameraStream.getTracks().forEach(track => track.stop());
+            this.localCameraStream = null;
+            this.isCameraOn = false;
+
+            this.localVideoElem.srcObject = null;
+            this.localVideoElem.style.display = 'none';
+
+            this.startCameraBtn.innerHTML = '<i class="fas fa-video me-2"></i>Start Camera';
+            this.startCameraBtn.classList.remove('btn-danger');
+            this.startCameraBtn.classList.add('btn-outline-secondary');
+
+            // remove tracks from peer connections
+            if (this.localCameraStream) {
+                this.localCameraStream.getTracks().forEach(track => {
+                    Object.values(this.peerConnections).forEach(pc => {
+                        const sender = pc.getSenders().find(s => s.track === track);
+                        if (sender) {
+                            pc.removeTrack(sender);
+                        }
+                    });
+                });
+            }
+
+            if (Object.keys(this.remoteStreams).length === 0 && !this.isSharing) {
+                this.videosContainer.style.display = 'none';
+            }
+
+            // Notify other users that we've stopped sharing
+            this.socket.emit('media_stopped', {
+                room: this.roomCode,
+                username: this.username,
+                type: 'camera'
+            });
+        }
+    }
+
+    muteAudio() {
+        if (this.localCameraStream) {
+            this.localCameraStream.getAudioTracks().forEach(track => track.enabled = false);
+            this.isMuted = true;
+            this.muteBtn.innerHTML = '<i class="fas fa-microphone me-2"></i>Unmute';
+            this.muteBtn.classList.add('btn-danger');
+            this.muteBtn.classList.remove('btn-outline-secondary');
+        }
+    }
+
+    unmuteAudio() {
+        if (this.localCameraStream) {
+            this.localCameraStream.getAudioTracks().forEach(track => track.enabled = true);
+            this.isMuted = false;
+            this.muteBtn.innerHTML = '<i class="fas fa-microphone-slash me-2"></i>Mute';
+            this.muteBtn.classList.remove('btn-danger');
+            this.muteBtn.classList.add('btn-outline-secondary');
+        }
+    }
+
+    handleSpeakingIndicator(userId, stream) {
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.minDecibels = -60;
+        analyser.maxDecibels = -10;
+        analyser.smoothingTimeConstant = 0.85;
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const videoContainer = document.getElementById(`user-video-container-${userId}`);
+
+        const checkSpeaking = () => {
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (const amplitude of dataArray) {
+                sum += amplitude * amplitude;
+            }
+            const volume = Math.sqrt(sum / dataArray.length);
+            if (volume > 5) { // Threshold can be adjusted
+                videoContainer.classList.add('speaking');
+            } else {
+                videoContainer.classList.remove('speaking');
+            }
+            requestAnimationFrame(checkSpeaking);
+        };
+
+        checkSpeaking();
     }
     
     async fetchRoomMembers() {

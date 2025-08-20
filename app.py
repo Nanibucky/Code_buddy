@@ -28,7 +28,7 @@ from auth import login_required, UserAuth
 # Add these imports at the top of your app.py file
 import room
 from flask_socketio import SocketIO, join_room, leave_room, emit
-from screen import socketio
+from communications import socketio
 
 # Create database directory if it doesn't exist
 os.makedirs(os.path.join(os.getcwd(), 'database'), exist_ok=True)
@@ -650,6 +650,9 @@ def api_room_submit_solution(room_id):
             # Update user stats if all tests passed
             if results.get('passing_ratio') == 1:
                 update_user_stats_on_success()
+                chatbot_handler.track_submission(user_id, question_id, True)
+            else:
+                chatbot_handler.track_submission(user_id, question_id, False)
         
         return jsonify({
             'success': True,
@@ -2163,6 +2166,7 @@ class ChatbotHandler:
         self.client = openai_client
         self.conversation_history = {}  # Store conversation history by session
         self.max_history_length = 10  # Maximum number of messages to keep in history
+        self.submission_attempts = {} # Store submission attempts per user per question
     
     def _get_session_id(self):
         """Get unique session ID for the current user"""
@@ -2174,13 +2178,16 @@ class ChatbotHandler:
         """Initialize conversation if it doesn't exist"""
         if session_id not in self.conversation_history:
             self.conversation_history[session_id] = [
-                {"role": "system", "content": """You are a helpful coding assistant called 'Coding Buddy'. 
-                Your job is to help the user with programming challenges. You should:
-                1. Provide hints rather than complete solutions
-                2. Guide users through debugging their code
-                3. Explain programming concepts when relevant
-                4. Be encouraging and supportive
-                Keep responses concise and focused on helping the user learn.
+                {"role": "system", "content": """You are an expert coding tutor called 'Coding Buddy'.
+                Your primary goal is to help students learn and improve their problem-solving skills.
+                When a user provides their code, analyze it thoroughly and provide feedback in the following areas:
+                1.  **Correctness:** Identify any bugs or logical errors. Explain why the code is incorrect and provide high-level suggestions for fixing it.
+                2.  **Efficiency:** Analyze the time and space complexity of the code. If there are opportunities for optimization, suggest alternative approaches and explain the trade-offs.
+                3.  **Style and Readability:** Comment on the code's style and readability. Suggest improvements to make the code cleaner and easier to understand.
+                4.  **Concepts:** If the user's code reveals a misunderstanding of a key programming concept, explain the concept clearly and provide a simple example.
+
+                Always be encouraging and supportive. Frame your feedback constructively to help the user learn.
+                Do not provide the complete correct solution unless the user explicitly asks for it.
                 """}
             ]
     
@@ -2306,6 +2313,29 @@ class ChatbotHandler:
         
         # Default response
         return "I'm here to help with your coding challenge. Could you tell me what specific aspect you need assistance with? I can help you understand the problem, develop an algorithm, or debug your solution."
+
+    def track_submission(self, user_id, question_id, passed):
+        """Track user submissions and provide proactive hints"""
+        if passed:
+            # Reset attempts on success
+            if user_id in self.submission_attempts and question_id in self.submission_attempts[user_id]:
+                del self.submission_attempts[user_id][question_id]
+            return
+
+        if user_id not in self.submission_attempts:
+            self.submission_attempts[user_id] = {}
+
+        if question_id not in self.submission_attempts[user_id]:
+            self.submission_attempts[user_id][question_id] = 0
+
+        self.submission_attempts[user_id][question_id] += 1
+
+        if self.submission_attempts[user_id][question_id] == 3:
+            # Proactively offer help after 3 failed attempts
+            question_data = questions_db.get(question_id)
+            if question_data:
+                hint = self.get_response("I'm stuck, can I get a hint?", question_data.get('question_info'))
+                socketio.emit('proactive_hint', {'hint': hint}, room=session['session_id'])
 
 # Initialize components
 question_generator = LLMQuestionGenerator()
